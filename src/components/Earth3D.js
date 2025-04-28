@@ -26,10 +26,15 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
     // 创建工具提示元素
     tooltipRef.current = document.createElement('div');
     tooltipRef.current.style.position = 'absolute';
-    tooltipRef.current.style.backgroundColor = 'rgba(0,0,0,0.7)';
-    tooltipRef.current.style.color = 'white';
-    tooltipRef.current.style.padding = '10px';
-    tooltipRef.current.style.borderRadius = '5px';
+    tooltipRef.current.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    tooltipRef.current.style.color = '#FFD700';
+    tooltipRef.current.style.padding = '15px';
+    tooltipRef.current.style.borderRadius = '8px';
+    tooltipRef.current.style.border = '1px solid #FFD700';
+    tooltipRef.current.style.boxShadow = '0 0 15px rgba(255, 215, 0, 0.5)';
+    tooltipRef.current.style.fontFamily = 'Poppins, sans-serif';
+    tooltipRef.current.style.maxWidth = '300px';
+    tooltipRef.current.style.transition = 'all 0.3s ease';
     tooltipRef.current.style.pointerEvents = 'none';
     tooltipRef.current.style.display = 'none';
     document.body.appendChild(tooltipRef.current);
@@ -93,8 +98,8 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
     let animationFrameId;
     let lastMarkerUpdate = 0;
     let lastLightUpdate = 0;
-    const markerUpdateThreshold = 100; // 标记更新间隔100ms
-    const lightUpdateThreshold = 500; // 光源更新间隔500ms
+    const markerUpdateThreshold = 10000; // 标记更新间隔100ms
+    const lightUpdateThreshold = 50000; // 光源更新间隔500ms
 
     const updateMarkers = () => {
       if (!sceneRef.current) return;
@@ -106,14 +111,20 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
       markersRef.current = [];
 
       // 添加新标记
+      console.log('Updating markers...', { currentDate, events });
+      let markersAdded = 0;
       events.forEach(event => {
-        if (new Date(event.startDate) <= currentDate && 
-            new Date(event.endDate) >= currentDate) {
+        const startDate = new Date(event.startDate);
+        const endDate = new Date(event.endDate);
+        if (startDate <= currentDate && endDate >= currentDate) {
+          console.log('Adding marker for:', event.title, { startDate, endDate });
           const marker = createEventMarker(event);
           sceneRef.current.add(marker);
           markersRef.current.push(marker);
+          markersAdded++;
         }
       });
+      console.log(`Total markers added: ${markersAdded}`);
     };
 
     const animate = (timestamp) => {
@@ -229,9 +240,13 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
   };
 
   const createEventMarker = (event) => {
-    const markerGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-    const markerMaterial = new THREE.MeshBasicMaterial({ 
-      color: hoveredEvent?.id === event.id ? 0x00ff00 : 0xff0000 
+    const markerGeometry = new THREE.SphereGeometry(0.1, 32, 32);
+    const markerMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFFD700,
+      emissive: 0xFFD700,
+      emissiveIntensity: 0.5,
+      metalness: 0.8,
+      roughness: 0.2
     });
     const marker = new THREE.Mesh(markerGeometry, markerMaterial);
     marker.userData.event = event;

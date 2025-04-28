@@ -48,13 +48,19 @@ function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [timezone, setTimezone] = useState(8); // 默认北京时间UTC+8
-  const [rotationSpeed, setRotationSpeed] = useState(2); // 默认自转速度
+  const [rotationSpeed, setRotationSpeed] = useState(0); // 默认自转速度
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      const data = await loadInitialData();
-      setEvents(data.events);
+      try {
+        console.log('Loading initial data...');
+        const data = await loadInitialData();
+        console.log('Data loaded successfully:', data);
+        setEvents(data.events);
+      } catch (error) {
+        console.error('Failed to load data:', error);
+      }
     };
     fetchData();
   }, []);
@@ -149,6 +155,9 @@ function App() {
             timezone={timezone}
             rotationSpeed={rotationSpeed}
           />
+          <div style={{ position: 'absolute', bottom: 20, left: 320, color: 'white' }}>
+            Current date: {currentDate.toString()}
+          </div>
         </Box>
       </Box>
     </ThemeProvider>
