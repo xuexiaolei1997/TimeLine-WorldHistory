@@ -89,10 +89,12 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
   }, []);
 
   useEffect(() => {
-    // 合并动画循环和标记更新
+    // 分离动画循环和标记更新
     let animationFrameId;
-    let lastUpdate = 0;
-    const updateThreshold = 100; // 100ms更新间隔
+    let lastMarkerUpdate = 0;
+    let lastLightUpdate = 0;
+    const markerUpdateThreshold = 100; // 标记更新间隔100ms
+    const lightUpdateThreshold = 500; // 光源更新间隔500ms
 
     const updateMarkers = () => {
       if (!sceneRef.current) return;
@@ -117,20 +119,21 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
     const animate = (timestamp) => {
       animationFrameId = requestAnimationFrame(animate);
       
-      // 限制更新频率
-      if (timestamp - lastUpdate > updateThreshold) {
-        lastUpdate = timestamp;
-        
-        // 地球自转
-        if (earthRef.current) {
-          earthRef.current.rotation.y += rotationSpeed * 0.001;
-        }
-        
-        // 更新光源位置
-        updateSunPosition(currentDate, timezone);
-        
-        // 更新标记
+      // 地球自转 - 每帧都执行但速度受rotationSpeed控制
+      if (earthRef.current) {
+        earthRef.current.rotation.y += rotationSpeed * 0.001;
+      }
+
+      // 限制标记更新频率
+      if (timestamp - lastMarkerUpdate > markerUpdateThreshold) {
+        lastMarkerUpdate = timestamp;
         updateMarkers();
+      }
+
+      // 限制光源更新频率
+      if (timestamp - lastLightUpdate > lightUpdateThreshold) {
+        lastLightUpdate = timestamp;
+        updateSunPosition(currentDate, timezone);
       }
       
       // 射线检测

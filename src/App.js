@@ -48,7 +48,7 @@ function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [timezone, setTimezone] = useState(8); // 默认北京时间UTC+8
-  const [rotationSpeed, setRotationSpeed] = useState(1); // 默认自转速度
+  const [rotationSpeed, setRotationSpeed] = useState(2); // 默认自转速度
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -102,13 +102,13 @@ function App() {
                 value={rotationSpeed}
                 onChange={(e, newValue) => setRotationSpeed(newValue)}
                 min={0}
-                max={1}
-                step={0.01}
+                max={10}
+                step={0.1}
                 valueLabelDisplay="auto"
                 marks={[
                   { value: 0, label: '停止' },
-                  { value: 0.5, label: '正常' },
-                  { value: 1, label: '快速' }
+                  { value: 5, label: '正常' },
+                  { value: 10, label: '快速' }
                 ]}
               />
             </Box>
