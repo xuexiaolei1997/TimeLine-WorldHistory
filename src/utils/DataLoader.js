@@ -1,68 +1,70 @@
-// 测试数据
-const testEvents = [
-  {
-    id: "egypt-pyramids",
-    title: "埃及金字塔建造",
-    startDate: "-2600-01-01",
-    endDate: "-2500-01-01",
-    location: {
-      coordinates: [29.9792, 31.1342], // 吉萨坐标
-      zoomLevel: 3,
-      highlightColor: "#FF0000"
-    },
-    contentRefs: {
-      articles: ["egypt-construction"],
-      images: ["pyramid1.jpg", "pyramid2.jpg"]
-    }
-  },
-  {
-    id: "great-wall",
-    title: "长城修建",
-    startDate: "-700-01-01", 
-    endDate: "-200-01-01",
-    location: {
-      coordinates: [40.4319, 116.5704], // 北京附近
-      zoomLevel: 3,
-      highlightColor: "#FFA500"
-    },
-    contentRefs: {
-      articles: ["great-wall-construction"],
-      images: ["wall1.jpg"]
-    }
+// 从mock-data加载数据
+const fetchData = async (file) => {
+  try {
+    const response = await fetch(`../../public/mock-data/${file}`);
+    if (!response.ok) throw new Error(`Failed to load ${file}`);
+    return await response.json();
+  } catch (error) {
+    console.error(`Error loading ${file}:`, error);
+    throw error;
   }
-];
+};
 
 // 模拟API请求延迟
 const simulateNetworkDelay = () => 
   new Promise(resolve => setTimeout(resolve, 500));
 
+// 转换事件数据结构
+const transformEvent = (event) => ({
+  id: event.id,
+  title: event.title.zh || event.title.en,
+  startDate: event.date.start,
+  endDate: event.date.end,
+  location: {
+    coordinates: event.location.coordinates,
+    zoomLevel: event.location.zoomLevel,
+    highlightColor: "#FF0000" // 默认颜色
+  },
+  contentRefs: {
+    articles: [],
+    images: event.media?.images || []
+  }
+});
+
 export const loadInitialData = async () => {
   await simulateNetworkDelay();
   
+  const [events, periods] = await Promise.all([
+    fetchData('events.json'),
+    fetchData('periods.json')
+  ]);
+
   return {
-    events: testEvents.map(event => ({
-      ...event,
-      startDate: parseDate(event.startDate),
-      endDate: parseDate(event.endDate)
-    }))
+    events: events.map(event => ({
+      ...transformEvent(event),
+      startDate: parseDate(event.date.start),
+      endDate: parseDate(event.date.end)
+    })),
+    periods
   };
 };
 
 export const loadEventDetails = async (eventId) => {
   await simulateNetworkDelay();
   
-  const event = testEvents.find(e => e.id === eventId);
+  const events = await fetchData('events.json');
+  const event = events.find(e => e.id === eventId);
   if (!event) return null;
   
+  const transformed = transformEvent(event);
   return {
-    ...event,
-    startDate: parseDate(event.startDate),
-    endDate: parseDate(event.endDate),
-    // 模拟详细内容
-    articleContent: `这是关于${event.title}的详细文章内容...`,
-    images: event.contentRefs.images.map(img => ({
+    ...transformed,
+    startDate: parseDate(event.date.start),
+    endDate: parseDate(event.date.end),
+    articleContent: `这是关于${transformed.title}的详细文章内容...`,
+    images: transformed.contentRefs.images.map(img => ({
       url: img,
-      caption: `${event.title}相关图片`
+      caption: `${transformed.title}相关图片`
     }))
   };
 };

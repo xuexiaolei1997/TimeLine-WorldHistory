@@ -1,0 +1,73 @@
+[
+  {
+    "id": "pyramids",
+    "title": { "en": "Construction of Pyramids", "zh": "金字塔建造" },
+    "period": "ancient",
+    "date": {
+      "start": "-2600-01-01",
+      "end": "-2500-12-31"
+    },
+    "location": {
+      "coordinates": [29.9792, 31.1342],
+      "zoomLevel": 4
+    },
+    "description": {
+      "en": "Construction of the Great Pyramids of Giza",
+      "zh": "吉萨大金字塔的建造时期"
+    },
+    "media": {
+      "images": ["pyramid.jpg"]
+    }
+  },
+  {
+    "id": "roman-empire",
+    "title": { "en": "Roman Empire", "zh": "罗马帝国" },
+    "period": "ancient",
+    "date": {
+      "start": "-27-01-16",
+      "end": "476-09-04"
+    },
+    "location": {
+      "coordinates": [41.9028, 12.4964],
+      "zoomLevel": 3
+    },
+    "description": {
+      "en": "Rise and fall of the Roman Empire",
+      "zh": "罗马帝国的兴衰"
+    }
+  },
+  {
+    "id": "great-wall",
+    "title": { "en": "Great Wall Construction", "zh": "长城修建" },
+    "period": "medieval",
+    "date": {
+      "start": "1368-01-01",
+      "end": "1644-12-31"
+    },
+    "location": {
+      "coordinates": [40.4319, 116.5704],
+      "zoomLevel": 4
+    },
+    "description": {
+      "en": "Ming Dynasty reconstruction of the Great Wall",
+      "zh": "明朝时期长城的重建"
+    }
+  },
+  {
+    "id": "industrial-revolution",
+    "title": { "en": "Industrial Revolution", "zh": "工业革命" },
+    "period": "modern",
+    "date": {
+      "start": "1760-01-01",
+      "end": "1840-12-31"
+    },
+    "location": {
+      "coordinates": [51.5074, -0.1278],
+      "zoomLevel": 3
+    },
+    "description": {
+      "en": "Transition to new manufacturing processes",
+      "zh": "新型制造工艺的转型时期"
+    }
+  }
+]
