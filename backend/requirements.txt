@@ -1,0 +1,16 @@
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+sqlalchemy>=2.0.0
+psycopg2-binary
+alembic
+fastapi-users
+fastapi-admin
+python-dotenv
+sqlalchemy>=2.0.0
+psycopg2-binary
+alembic
+fastapi-users
+fastapi-admin
