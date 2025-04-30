@@ -53,6 +53,9 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    // Set zoom limits to prevent camera getting too close
+    controls.minDistance = 2.5; // Minimum zoom distance (can't get closer than 2.5 units)
+    controls.maxDistance = 10; // Maximum zoom distance
     controlsRef.current = controls;
     
     // Add zoom change listener
