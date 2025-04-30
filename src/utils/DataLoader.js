@@ -80,7 +80,7 @@ const transformEvent = (event) => ({
   }
 });
 
-export const loadInitialData = async () => {
+export const loadInitialData = async (zoomLevel = 0) => {
   await simulateNetworkDelay();
   
   const [events, periods] = await Promise.all([
@@ -88,8 +88,13 @@ export const loadInitialData = async () => {
     fetchData('periods.json')
   ]);
 
+  // Filter events based on zoom level
+  const filteredEvents = events.filter(event => 
+    zoomLevel === 0 || event.location.zoomLevel <= zoomLevel
+  );
+
   return {
-    events: events.map(event => ({
+    events: filteredEvents.map(event => ({
       ...transformEvent(event),
       startDate: parseDate(event.date.start),
       endDate: parseDate(event.date.end)
@@ -98,12 +103,17 @@ export const loadInitialData = async () => {
   };
 };
 
-export const loadEventDetails = async (eventId) => {
+export const loadEventDetails = async (eventId, zoomLevel = 0) => {
   await simulateNetworkDelay();
   
   const events = await fetchData('events.json');
   const event = events.find(e => e.id === eventId);
   if (!event) return null;
+  
+  // Only load details if zoom level is sufficient
+  if (zoomLevel > 0 && event.location.zoomLevel > zoomLevel) {
+    return null;
+  }
   
   const transformed = transformEvent(event);
   return {

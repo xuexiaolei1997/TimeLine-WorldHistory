@@ -10,6 +10,7 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
   const controlsRef = useRef(null);
   const earthRef = useRef(null);
   const markersRef = useRef([]);
+  const [zoomLevel, setZoomLevel] = useState(0);
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const [hoveredEvent, setHoveredEvent] = useState(null);
@@ -53,6 +54,15 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controlsRef.current = controls;
+    
+    // Add zoom change listener
+    controls.addEventListener('change', () => {
+      // Calculate zoom level based on camera distance
+      const newZoom = Math.max(0, Math.floor(5 - camera.position.z));
+      if (newZoom !== zoomLevel) {
+        setZoomLevel(newZoom);
+      }
+    });
 
     // 创建地球
     const geometry = new THREE.SphereGeometry(2, 64, 64);
@@ -94,43 +104,46 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
   }, []);
 
   useEffect(() => {
-    // 分离动画循环和标记更新
+    // 优化动画循环和标记更新
     let animationFrameId;
     let lastMarkerUpdate = 0;
     let lastLightUpdate = 0;
+    let lastRaycastUpdate = 0;
     const markerUpdateThreshold = 10000; // 标记更新间隔100ms
     const lightUpdateThreshold = 50000; // 光源更新间隔500ms
+    const raycastThreshold = 100; // 射线检测间隔100ms
+    
+    // 缓存可见事件
+    const visibleEvents = zoomLevel > 0 ? 
+      events.filter(event => 
+        event.location.zoomLevel <= zoomLevel &&
+        new Date(event.startDate) <= currentDate && 
+        new Date(event.endDate) >= currentDate
+      ) : 
+      [];
 
+    // 优化标记更新
     const updateMarkers = () => {
-      if (!sceneRef.current) return;
+      if (!earthRef.current) return;
       
-      // 清除旧标记
-      markersRef.current.forEach(marker => {
-        sceneRef.current.remove(marker);
-      });
+      // 批量清除旧标记
+      markersRef.current.forEach(marker => earthRef.current.remove(marker));
       markersRef.current = [];
 
-      // 添加新标记
-      console.log('Updating markers...', { currentDate, events });
-      let markersAdded = 0;
-      events.forEach(event => {
-        const startDate = new Date(event.startDate);
-        const endDate = new Date(event.endDate);
-        if (startDate <= currentDate && endDate >= currentDate) {
-          console.log('Adding marker for:', event.title, { startDate, endDate });
-          const marker = createEventMarker(event);
-          sceneRef.current.add(marker);
-          markersRef.current.push(marker);
-          markersAdded++;
-        }
+      // 批量添加新标记
+      const newMarkers = visibleEvents.map(event => {
+        const marker = createEventMarker(event);
+        earthRef.current.add(marker);
+        return marker;
       });
-      console.log(`Total markers added: ${markersAdded}`);
+      
+      markersRef.current = newMarkers;
     };
 
     const animate = (timestamp) => {
       animationFrameId = requestAnimationFrame(animate);
       
-      // 地球自转 - 每帧都执行但速度受rotationSpeed控制
+      // 地球自转
       if (earthRef.current) {
         earthRef.current.rotation.y += rotationSpeed * 0.001;
       }
@@ -147,37 +160,48 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
         updateSunPosition(currentDate, timezone);
       }
       
-      // 射线检测
-      if (cameraRef.current) {
+      // 限制射线检测频率
+      if (timestamp - lastRaycastUpdate > raycastThreshold && cameraRef.current) {
+        lastRaycastUpdate = timestamp;
+        
         raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
         const intersects = raycasterRef.current.intersectObjects(markersRef.current);
         
         if (intersects.length > 0) {
           const marker = intersects[0].object;
           const eventData = marker.userData.event;
-          setHoveredEvent(eventData);
           
-          // 更新工具提示
-          if (tooltipRef.current) {
-            tooltipRef.current.style.display = 'block';
-            tooltipRef.current.style.left = `${lastMousePosition.current.clientX + 10}px`;
-            tooltipRef.current.style.top = `${lastMousePosition.current.clientY + 10}px`;
-            tooltipRef.current.innerHTML = `
-              <h3>${eventData.title}</h3>
-              <p>${eventData.description}</p>
-              <p>${new Date(eventData.startDate).toLocaleDateString()} - 
-                 ${new Date(eventData.endDate).toLocaleDateString()}</p>
-            `;
+          // 只有当悬停事件变化时才更新
+          if (!hoveredEvent || hoveredEvent.id !== eventData.id) {
+            setHoveredEvent(eventData);
+            
+            // 使用requestAnimationFrame优化DOM更新
+            requestAnimationFrame(() => {
+              if (tooltipRef.current) {
+                tooltipRef.current.style.display = 'block';
+                tooltipRef.current.style.left = `${lastMousePosition.current.clientX + 10}px`;
+                tooltipRef.current.style.top = `${lastMousePosition.current.clientY + 10}px`;
+                tooltipRef.current.innerHTML = `
+                  <h3>${eventData.title}</h3>
+                  <p>${eventData.description}</p>
+                  <p>${new Date(eventData.startDate).toLocaleDateString()} - 
+                     ${new Date(eventData.endDate).toLocaleDateString()}</p>
+                `;
+              }
+            });
+            
+            // 创建延伸线
+            createConnectionLine(marker.position);
           }
-          
-          // 创建延伸线
-          createConnectionLine(marker.position);
         } else {
-          setHoveredEvent(null);
-          if (tooltipRef.current) {
-            tooltipRef.current.style.display = 'none';
+          // Clear hover state when not intersecting any markers
+          if (hoveredEvent) {
+            setHoveredEvent(null);
+            if (tooltipRef.current) {
+              tooltipRef.current.style.display = 'none';
+            }
+            clearConnectionLines();
           }
-          clearConnectionLines();
         }
       }
       
@@ -240,16 +264,18 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
   };
 
   const createEventMarker = (event) => {
-    const markerGeometry = new THREE.SphereGeometry(0.1, 32, 32);
-    const markerMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xFFD700,
-      emissive: 0xFFD700,
-      emissiveIntensity: 0.5,
-      metalness: 0.8,
-      roughness: 0.2
+    // Create smaller, more subtle ring marker
+    const markerGeometry = new THREE.RingGeometry(0.02, 0.03, 16);
+    const markerMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x00AAFF,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.6
     });
     const marker = new THREE.Mesh(markerGeometry, markerMaterial);
     marker.userData.event = event;
+    // Rotate to face camera initially
+    marker.lookAt(new THREE.Vector3(0, 0, 0));
     
     // 将经纬度转换为3D坐标
     const lat = event.location.coordinates[0];
