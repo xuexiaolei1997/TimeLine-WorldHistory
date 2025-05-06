@@ -1,20 +1,60 @@
-from typing import List
-from sqlalchemy.orm import Session
-from models import Event
+from typing import List, Optional
+from pymongo.database import Database
 from core.repository import BaseRepository
+from schemas.event_schemas import Event, EventCreate, EventUpdate
+from pymongo.errors import PyMongoError
+import logging
+from fastapi.logger import logger
+from bson import ObjectId
 
 class EventRepository(BaseRepository[Event]):
-    def __init__(self, db: Session):
-        super().__init__(Event, db)
+    """Repository for event data operations"""
+    
+    def __init__(self, db: Database):
+        super().__init__("events", db)
+        # Ensure indexes for better query performance
+        self.collection.create_index([("title", "text"), ("description", "text")])
+        # Initialize cache reference
+        self.cache = None
 
-    def get_by_title(self, title: str) -> Event:
-        return self.db.query(self.model).filter(self.model.title == title).first()
+    def get_by_title(self, title: str) -> Optional[Event]:
+        """Get event by exact title match"""
+        try:
+            result = self.collection.find_one({"title": title})
+            return Event(**result) if result else None
+        except PyMongoError as e:
+            logger.error(f"Failed to get event by title {title}", exc_info=True)
+            raise
 
     def search(self, query: str, skip: int = 0, limit: int = 100) -> List[Event]:
-        return (
-            self.db.query(self.model)
-            .filter(self.model.title.contains(query) | self.model.description.contains(query))
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
+        """Search events by title or description with pagination"""
+        try:
+            # Validate pagination parameters
+            skip = max(0, skip)
+            limit = min(100, max(1, limit))
+            
+            results = self.collection.find(
+                {"$text": {"$search": query}},
+                {"score": {"$meta": "textScore"}}
+            ).sort([("score", {"$meta": "textScore"})])
+            
+            return [Event(**doc) for doc in results.skip(skip).limit(limit)]
+        except PyMongoError as e:
+            logger.error(f"Failed to search events with query {query}", exc_info=True)
+            raise
+
+    def create(self, event: EventCreate) -> Event:
+        """Create new event with validation"""
+        try:
+            event_dict = event.dict()
+            result = self.collection.insert_one(event_dict)
+            created_event = self.get(str(result.inserted_id))
+            
+            # Clear relevant caches
+            if hasattr(self, 'cache'):
+                self.cache.delete("events:*")
+                
+            return created_event
+        except PyMongoError as e:
+            logger.error("Failed to create event", exc_info=True)
+            raise

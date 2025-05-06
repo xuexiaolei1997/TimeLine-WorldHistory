@@ -1,0 +1,32 @@
+database:
+  mongodb:
+    host: localhost
+    port: 27017
+    database: timeline
+    username: 
+    password: 
+    auth_source: admin
+
+cache:
+  redis:
+    host: 192.168.253.99
+    port: 6379
+    db: 0
+    password: 
+    default_ttl: 300
+
+server:
+  title: "World History Timeline"
+  version: "1.0.0"
+  host: 0.0.0.0
+  port: 8001
+  workers: 1
+
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+admin:
+  login_logo_url: "/static/images/admin-logo.png"
+  logo_url: "/static/images/logo.png"
+  favicon_url: "/static/images/favicon.ico"

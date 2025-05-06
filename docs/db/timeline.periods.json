@@ -1,0 +1,52 @@
+[{
+  "_id": {
+    "$oid": "68196884a3f030d8657442cd"
+  },
+  "id": "prehistoric",
+  "name": {
+    "en": "Prehistoric",
+    "zh": "史前时期"
+  },
+  "startYear": -10000,
+  "endYear": -3500,
+  "color": "#8B4513"
+},
+{
+  "_id": {
+    "$oid": "68196884a3f030d8657442ce"
+  },
+  "id": "ancient",
+  "name": {
+    "en": "Ancient Civilizations",
+    "zh": "古代文明"
+  },
+  "startYear": -3500,
+  "endYear": 500,
+  "color": "#CD5C5C"
+},
+{
+  "_id": {
+    "$oid": "68196884a3f030d8657442cf"
+  },
+  "id": "medieval",
+  "name": {
+    "en": "Medieval",
+    "zh": "中世纪"
+  },
+  "startYear": 500,
+  "endYear": 1500,
+  "color": "#4682B4"
+},
+{
+  "_id": {
+    "$oid": "68196884a3f030d8657442d0"
+  },
+  "id": "modern",
+  "name": {
+    "en": "Modern",
+    "zh": "近现代"
+  },
+  "startYear": 1500,
+  "endYear": 2025,
+  "color": "#32CD32"
+}]

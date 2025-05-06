@@ -1,18 +1,16 @@
-from typing import List
-from sqlalchemy.orm import Session
-from models import Period
+from typing import List, Dict, Any
+from pymongo.database import Database
 from core.repository import BaseRepository
 
-class PeriodRepository(BaseRepository[Period]):
-    def __init__(self, db: Session):
-        super().__init__(Period, db)
+class PeriodRepository(BaseRepository[Dict[str, Any]]):
+    def __init__(self, db: Database):
+        super().__init__("periods", db)
 
-    def get_by_name(self, name: str) -> Period:
-        return self.db.query(self.model).filter(self.model.name == name).first()
+    def get_by_name(self, name: str) -> Dict[str, Any]:
+        return self.collection.find_one({"name": name})
 
-    def get_by_year_range(self, year: int) -> List[Period]:
-        return (
-            self.db.query(self.model)
-            .filter(self.model.start_year <= year, self.model.end_year >= year)
-            .all()
-        )
+    def get_by_year_range(self, year: int) -> List[Dict[str, Any]]:
+        return list(self.collection.find({
+            "start_year": {"$lte": year},
+            "end_year": {"$gte": year}
+        }))
