@@ -2,7 +2,7 @@
   "_id": {
     "$oid": "68196884a3f030d8657442cd"
   },
-  "id": "prehistoric",
+  "periodId": "prehistoric",
   "name": {
     "en": "Prehistoric",
     "zh": "史前时期"
@@ -15,7 +15,7 @@
   "_id": {
     "$oid": "68196884a3f030d8657442ce"
   },
-  "id": "ancient",
+  "periodId": "ancient",
   "name": {
     "en": "Ancient Civilizations",
     "zh": "古代文明"
@@ -28,7 +28,7 @@
   "_id": {
     "$oid": "68196884a3f030d8657442cf"
   },
-  "id": "medieval",
+  "periodId": "medieval",
   "name": {
     "en": "Medieval",
     "zh": "中世纪"
@@ -41,7 +41,7 @@
   "_id": {
     "$oid": "68196884a3f030d8657442d0"
   },
-  "id": "modern",
+  "periodId": "modern",
   "name": {
     "en": "Modern",
     "zh": "近现代"

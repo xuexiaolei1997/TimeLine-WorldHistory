@@ -83,7 +83,7 @@ class FastAPIRunner:
             'version': 1,
             'formatters': {
                 'default': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s - [%(request_id)s]',
+                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                 },
             },
             'handlers': {

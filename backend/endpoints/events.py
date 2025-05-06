@@ -15,9 +15,10 @@ def get_event_repo(
     db = Depends(get_db)
 ) -> EventRepository:
     """Dependency for getting EventRepository instance"""
-    repo = EventRepository(db)
-    repo.cache = request.app.state.cache
-    return repo
+    with db as database:
+        repo = EventRepository(database)
+        repo.cache = request.app.state.cache
+        return repo
 
 @router.post("/", response_model=Event)
 @handle_app_exceptions
@@ -27,7 +28,8 @@ async def create_event(
 ):
     """Create a new event"""
     logger.info(f"Creating new event: {event.title}")
-    return repo.create(event)
+    res = repo.create(event)
+    return res
 
 @router.get("/", response_model=List[Event])
 @cache_response(ttl=60)
@@ -39,7 +41,8 @@ async def read_events(
 ):
     """Get list of events with pagination"""
     logger.info(f"Fetching events (skip={skip}, limit={limit})")
-    return repo.list(skip=skip, limit=limit)
+    res = repo.list(skip=skip, limit=limit)
+    return res
 
 @router.get("/search", response_model=List[Event])
 @cache_response(ttl=60)
@@ -52,7 +55,8 @@ async def search_events(
 ):
     """Search events by title or description"""
     logger.info(f"Searching events for: {query}")
-    return repo.search(query, skip=skip, limit=limit)
+    res = repo.search(query, skip=skip, limit=limit)
+    return res
 
 @router.get("/by-title/{title}", response_model=Optional[Event])
 @cache_response(ttl=300)
@@ -73,7 +77,8 @@ async def read_event(
 ):
     """Get event by ID"""
     logger.info(f"Fetching event by ID: {event_id}")
-    return repo.get(event_id)
+    ret = repo.get(event_id)
+    return ret
 
 @router.put("/{event_id}", response_model=Event)
 @handle_app_exceptions
@@ -84,7 +89,8 @@ async def update_event(
 ):
     """Update an existing event"""
     logger.info(f"Updating event {event_id}")
-    return repo.update(event_id, event)
+    res = repo.update(event_id, event)
+    return res
 
 @router.delete("/{event_id}")
 @handle_app_exceptions

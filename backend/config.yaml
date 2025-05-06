@@ -9,7 +9,7 @@ database:
 
 cache:
   redis:
-    host: 192.168.253.99
+    host: 127.0.0.1
     port: 6379
     db: 0
     password: 

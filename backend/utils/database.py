@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import logging
 from pymongo.errors import PyMongoError
-from models.base import Base
 
 logger = logging.getLogger(__name__)
 
