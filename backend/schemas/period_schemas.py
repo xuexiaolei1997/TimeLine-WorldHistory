@@ -6,24 +6,24 @@ class PeriodName(BaseModel):
     zh: str
 
 class PeriodBase(BaseModel):
-    period_id: str
+    periodId: str
     name: PeriodName
-    start_year: int
-    end_year: int
+    startYear: int
+    endYear: int
     color: str
 
 class PeriodCreate(PeriodBase):
     pass
 
 class PeriodUpdate(PeriodBase):
-    period_id: str
-    name: Optional[str] = None
-    start_year: Optional[int] = None
-    end_year: Optional[int] = None
-    color: Optional[str] = None
+    periodId: str
+    name: PeriodName
+    startYear: int
+    endYear: int
+    color: str
 
 class Period(PeriodBase):
-    id: int
+    _id: int
 
     class Config:
         orm_mode = True

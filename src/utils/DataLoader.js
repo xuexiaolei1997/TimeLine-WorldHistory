@@ -1,4 +1,20 @@
 
+import config from '../config';
+
+// 实际API调用
+const fetchApiData = async (endpoint) => {
+  try {
+    const response = await fetch(`${config.apiBaseUrl}/${endpoint}`);
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error calling API endpoint ${endpoint}:`, error);
+    throw error;
+  }
+};
+
 // 模拟数据加载
 const fetchData = async (file) => {
   try {
@@ -83,10 +99,19 @@ const transformEvent = (event) => ({
 export const loadInitialData = async (zoomLevel = 0) => {
   await simulateNetworkDelay();
   
-  const [events, periods] = await Promise.all([
-    fetchData('events.json'),
-    fetchData('periods.json')
-  ]);
+  let events, periods;
+  
+  if (config.useMockData) {
+    [events, periods] = await Promise.all([
+      fetchData('events.json'),
+      fetchData('periods.json')
+    ]);
+  } else {
+    [events, periods] = await Promise.all([
+      fetchApiData('events'),
+      fetchApiData('periods')
+    ]);
+  }
 
   // Filter events based on zoom level
   const filteredEvents = events.filter(event => 
@@ -106,7 +131,12 @@ export const loadInitialData = async (zoomLevel = 0) => {
 export const loadEventDetails = async (eventId, zoomLevel = 0) => {
   await simulateNetworkDelay();
   
-  const events = await fetchData('events.json');
+  let events;
+  if (config.useMockData) {
+    events = await fetchData('events.json');
+  } else {
+    events = await fetchApiData(`events/${eventId}`);
+  }
   const event = events.find(e => e.id === eventId);
   if (!event) return null;
   
