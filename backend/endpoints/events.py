@@ -69,6 +69,46 @@ async def read_event_by_title(
     logger.info(f"Fetching event by title: {title}")
     return repo.get_by_title(title)
 
+@router.get("/query", response_model=List[Event])
+@cache_response(ttl=60)
+@handle_app_exceptions
+async def query_events(
+    request: Request,
+    start_date: Optional[str] = Query(None, regex=r"^\d{4}-\d{2}-\d{2}$"),
+    end_date: Optional[str] = Query(None, regex=r"^\d{4}-\d{2}-\d{2}$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    repo: EventRepository = Depends(get_event_repo),
+    **field_queries: Optional[str]
+):
+    """
+    Flexible query events with:
+    - Arbitrary field queries (fuzzy matching for strings)
+    - Date range filtering (yyyy-mm-dd format)
+    - Pagination
+    
+    Examples:
+    - /query?title.en=war&period=ancient-rome
+    - /query?date.start=2023-01-01&date.end=2023-12-31
+    - /query?location.coordinates.0=116.4&location.coordinates.1=39.9
+    """
+    # Filter out None values and special params
+    field_queries = {
+        k: v for k, v in field_queries.items() 
+        if v is not None and k not in ['skip', 'limit']
+    }
+    
+    logger.info(f"Querying events with filters: {field_queries}, "
+               f"start_date={start_date}, end_date={end_date}")
+    
+    return repo.query_events(
+        field_queries=field_queries,
+        start_date=start_date,
+        end_date=end_date,
+        skip=skip,
+        limit=limit
+    )
+
 @router.get("/{event_id}", response_model=Event)
 @handle_app_exceptions
 async def read_event(

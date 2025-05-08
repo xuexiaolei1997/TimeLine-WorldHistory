@@ -18,9 +18,9 @@ class EventLocation(BaseModel):
     zoomLevel: int = Field(..., ge=1, le=20)  # Zoom level between 1 and 20
 
 class EventMedia(BaseModel):
-    images: list[str] = Field(..., min_items=1)
-    videos: list[str] = Field(..., min_items=1)
-    audios: list[str] = Field(..., min_items=1)
+    images: list[str] = Field(..., min_items=0)
+    videos: list[str] = Field(..., min_items=0)
+    audios: list[str] = Field(..., min_items=0)
 
 class EventDescription(BaseModel):
     en: str = Field(..., min_length=1)
