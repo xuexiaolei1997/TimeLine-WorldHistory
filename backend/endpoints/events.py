@@ -69,7 +69,7 @@ async def read_event_by_title(
     logger.info(f"Fetching event by title: {title}")
     return repo.get_by_title(title)
 
-@router.get("/query", response_model=List[Event])
+@router.post("/query", response_model=List[Event])
 @cache_response(ttl=60)
 @handle_app_exceptions
 async def query_events(

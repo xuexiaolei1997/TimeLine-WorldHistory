@@ -1,0 +1,14 @@
+{
+  "welcome": "欢迎",
+  "timeline": "时间轴", 
+  "events": "事件",
+  "periods": "时期",
+  "settings": "设置",
+  "language": "语言",
+  "timezone": "时区选择",
+  "rotationSpeed": "地球自转速度",
+  "stop": "停止",
+  "normal": "正常",
+  "fast": "快速",
+  "close": "关闭"
+}

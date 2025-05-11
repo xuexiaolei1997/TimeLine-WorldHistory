@@ -1,0 +1,14 @@
+{
+  "welcome": "Welcome",
+  "timeline": "Timeline",
+  "events": "Events",
+  "periods": "Periods",
+  "settings": "Settings",
+  "language": "Language",
+  "timezone": "Timezone",
+  "rotationSpeed": "Earth Rotation Speed",
+  "stop": "Stop",
+  "normal": "Normal",
+  "fast": "Fast",
+  "close": "Close"
+}

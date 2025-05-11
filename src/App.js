@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import i18n from 'i18next';
+import { initReactI18next, useTranslation } from 'react-i18next';
 import { 
   ThemeProvider,
   createTheme,
@@ -44,7 +46,23 @@ const theme = createTheme({
   },
 });
 
+// 初始化i18n
+i18n
+  .use(initReactI18next)
+  .init({
+    resources: {
+      en: { translation: require('./locales/en/translation.json') },
+      zh: { translation: require('./locales/zh/translation.json') }
+    },
+    lng: 'zh',
+    fallbackLng: 'en',
+    interpolation: {
+      escapeValue: false
+    }
+  });
+
 function App() {
+  const { t } = useTranslation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [timezone, setTimezone] = useState(8); // 默认北京时间UTC+8
@@ -72,7 +90,7 @@ function App() {
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar>
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-              世界历史时间线
+              {t('welcome')}
             </Typography>
             <IconButton 
               color="inherit"
@@ -86,14 +104,25 @@ function App() {
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
         >
-          <DialogTitle>设置</DialogTitle>
+          <DialogTitle>{t('settings')}</DialogTitle>
           <DialogContent>
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>时区选择</InputLabel>
+              <InputLabel>{t('language')}</InputLabel>
+              <Select
+                value={i18n.language}
+                onChange={(e) => i18n.changeLanguage(e.target.value)}
+                label={t('language')}
+              >
+                <MenuItem value="en">English</MenuItem>
+                <MenuItem value="zh">中文</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>{t('timezone')}</InputLabel>
               <Select
                 value={timezone}
                 onChange={(e) => setTimezone(Number(e.target.value))}
-                label="时区选择"
+                label={t('timezone')}
               >
                 <MenuItem value={-12}>UTC-12</MenuItem>
                 <MenuItem value={-8}>UTC-8</MenuItem>
@@ -103,7 +132,7 @@ function App() {
               </Select>
             </FormControl>
             <Box>
-              <Typography gutterBottom>地球自转速度</Typography>
+              <Typography gutterBottom>{t('rotationSpeed')}</Typography>
               <Slider
                 value={rotationSpeed}
                 onChange={(e, newValue) => setRotationSpeed(newValue)}
@@ -112,15 +141,15 @@ function App() {
                 step={0.1}
                 valueLabelDisplay="auto"
                 marks={[
-                  { value: 0, label: '停止' },
-                  { value: 5, label: '正常' },
-                  { value: 10, label: '快速' }
+                  { value: 0, label: t('stop') },
+                  { value: 5, label: t('normal') },
+                  { value: 10, label: t('fast') }
                 ]}
               />
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setSettingsOpen(false)}>关闭</Button>
+            <Button onClick={() => setSettingsOpen(false)}>{t('close')}</Button>
           </DialogActions>
         </Dialog>
         <Paper
