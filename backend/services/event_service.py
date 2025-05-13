@@ -67,33 +67,27 @@ class EventRepository(BaseRepository[Event]):
                    limit: int = 100) -> List[Event]:
         """
         Flexible query events with:
-        - Arbitrary field queries (exact or fuzzy matching)
-        - Time range filtering
+        - All field queries use fuzzy matching
+        - Optional time range filtering
         - Pagination
         
         Args:
-            field_queries: Dict of {field: value} to query
-                           String fields use fuzzy matching
-                           Other fields use exact matching
-            start_date: Minimum date (yyyy-mm-dd)
-            end_date: Maximum date (yyyy-mm-dd)
+            field_queries: Dict of {field: value} to query (all fields use fuzzy matching)
+            start_date: Optional minimum date (yyyy-mm-dd)
+            end_date: Optional maximum date (yyyy-mm-dd)
             skip: Pagination offset
             limit: Maximum results per page
         """
         try:
             query = {}
             
-            # Process field queries
+            # Process field queries - all fields use fuzzy matching
             if field_queries:
                 for field, value in field_queries.items():
-                    if isinstance(value, str):
-                        # Fuzzy match for string fields
-                        query[field] = {"$regex": value, "$options": "i"}
-                    else:
-                        # Exact match for other types
-                        query[field] = value
+                    if value is not None:
+                        query[field] = {"$regex": str(value), "$options": "i"}
                 
-            # Handle date range separately
+            # Handle optional date range
             if start_date or end_date:
                 date_query = {}
                 if start_date:

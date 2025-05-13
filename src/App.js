@@ -68,6 +68,7 @@ function App() {
   const [timezone, setTimezone] = useState(8); // 默认北京时间UTC+8
   const [rotationSpeed, setRotationSpeed] = useState(0); // 默认自转速度
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -183,9 +184,13 @@ function App() {
             events={events}
             timezone={timezone}
             rotationSpeed={rotationSpeed}
+            onZoomChange={setZoomLevel}
           />
           <div style={{ position: 'absolute', bottom: 20, left: 320, color: 'white' }}>
             Current date: {currentDate.toString()}
+          </div>
+          <div style={{ position: 'absolute', bottom: 50, left: 320, color: 'white' }}>
+            Zoom level: {zoomLevel}
           </div>
         </Box>
       </Box>

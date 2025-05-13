@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
+const Earth3D = ({ currentDate, events, timezone, rotationSpeed, onZoomChange }) => {
   const mountRef = useRef(null);
   const sceneRef = useRef(new THREE.Scene());
   const rendererRef = useRef(null);
@@ -64,6 +64,9 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed }) => {
       const newZoom = Math.max(0, Math.floor(5 - camera.position.z));
       if (newZoom !== zoomLevel) {
         setZoomLevel(newZoom);
+        if (onZoomChange) {
+          onZoomChange(newZoom);
+        }
       }
     });
 

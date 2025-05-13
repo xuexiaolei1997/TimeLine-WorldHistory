@@ -20,7 +20,7 @@ def get_event_repo(
         repo.cache = request.app.state.cache
         return repo
 
-@router.post("/", response_model=Event)
+@router.post("/create", response_model=Event)
 @handle_app_exceptions
 async def create_event(
     event: EventCreate, 
@@ -44,7 +44,7 @@ async def read_events(
     res = repo.list(skip=skip, limit=limit)
     return res
 
-@router.get("/search", response_model=List[Event])
+@router.post("/search", response_model=List[Event])
 @cache_response(ttl=60)
 async def search_events(
     request: Request,
