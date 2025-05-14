@@ -68,6 +68,42 @@ const fetchData = async (file) => {
       };
     }
 
+    // 模拟regions.json数据
+    if (file === 'regions.json') {
+      return [
+        {
+          id: "egypt",
+          name: "Ancient Egypt",
+          period: "ancient",
+          boundary: {
+            type: "Polygon",
+            coordinates: [[
+              [31.0, 29.0],
+              [31.0, 30.0],
+              [32.0, 30.0],
+              [32.0, 29.0],
+              [31.0, 29.0]
+            ]]
+          }
+        },
+        {
+          id: "roman-empire",
+          name: "Roman Empire",
+          period: "ancient",
+          boundary: {
+            type: "Polygon",
+            coordinates: [[
+              [10.0, 35.0],
+              [10.0, 45.0],
+              [30.0, 45.0],
+              [30.0, 35.0],
+              [10.0, 35.0]
+            ]]
+          }
+        }
+      ];
+    }
+
     throw new Error(`No mock data available for ${file}`);
   } catch (error) {
     console.error(`Error loading mock data for ${file}:`, error);
@@ -99,17 +135,19 @@ const transformEvent = (event) => ({
 export const loadInitialData = async (zoomLevel = 0) => {
   await simulateNetworkDelay();
   
-  let events, periods;
+  let events, periods, regions;
   
   if (config.useMockData) {
-    [events, periods] = await Promise.all([
+    [events, periods, regions] = await Promise.all([
       fetchData('events.json'),
-      fetchData('periods.json')
+      fetchData('periods.json'),
+      fetchData('regions.json')
     ]);
   } else {
-    [events, periods] = await Promise.all([
+    [events, periods, regions] = await Promise.all([
       fetchApiData('events'),
-      fetchApiData('periods')
+      fetchApiData('periods'),
+      fetchApiData('regions')
     ]);
   }
 
@@ -124,7 +162,8 @@ export const loadInitialData = async (zoomLevel = 0) => {
       startDate: parseDate(event.date.start),
       endDate: parseDate(event.date.end)
     })),
-    periods
+    periods,
+    regions
   };
 };
 

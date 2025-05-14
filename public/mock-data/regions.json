@@ -1,0 +1,53 @@
+[
+  {
+    "id": "egypt",
+    "name": "Ancient Egypt",
+    "period": "ancient",
+    "boundary": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [31.0, 29.0],
+          [31.0, 30.0],
+          [32.0, 30.0],
+          [32.0, 29.0],
+          [31.0, 29.0]
+        ]
+      ]
+    }
+  },
+  {
+    "id": "roman-empire",
+    "name": "Roman Empire",
+    "period": "ancient",
+    "boundary": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [10.0, 35.0],
+          [10.0, 45.0],
+          [30.0, 45.0],
+          [30.0, 35.0],
+          [10.0, 35.0]
+        ]
+      ]
+    }
+  },
+  {
+    "id": "china",
+    "name": "Ancient China",
+    "period": "ancient",
+    "boundary": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [110.0, 35.0],
+          [110.0, 45.0],
+          [120.0, 45.0],
+          [120.0, 35.0],
+          [110.0, 35.0]
+        ]
+      ]
+    }
+  }
+]

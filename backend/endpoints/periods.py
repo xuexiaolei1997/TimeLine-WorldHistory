@@ -31,18 +31,6 @@ async def create_period(
     logger.info(f"Creating new period: {period.name}")
     return repo.create(period)
 
-@router.get("/", response_model=List[Period])
-@cache_response(ttl=60)
-async def read_periods(
-    request: Request,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    repo: PeriodRepository = Depends(get_period_repo)
-):
-    """Get list of periods with pagination"""
-    logger.info(f"Fetching periods (skip={skip}, limit={limit})")
-    return repo.list(skip=skip, limit=limit)
-
 @router.post("/search", response_model=List[Period])
 @cache_response(ttl=60)
 async def search_periods(

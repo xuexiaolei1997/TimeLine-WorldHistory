@@ -30,6 +30,7 @@ class EventBase(BaseModel):
     """Base event model with validation"""
     title: EventTitle
     period: str
+    region_id: Optional[str] = Field(None, description="Associated region ID")
     date: EventDate
     location: EventLocation
     description: EventDescription

@@ -31,19 +31,6 @@ async def create_event(
     res = repo.create(event)
     return res
 
-@router.get("/", response_model=List[Event])
-@cache_response(ttl=60)
-async def read_events(
-    request: Request,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    repo: EventRepository = Depends(get_event_repo)
-):
-    """Get list of events with pagination"""
-    logger.info(f"Fetching events (skip={skip}, limit={limit})")
-    res = repo.list(skip=skip, limit=limit)
-    return res
-
 @router.post("/search", response_model=List[Event])
 @cache_response(ttl=60)
 async def search_events(
@@ -69,6 +56,17 @@ async def read_event_by_title(
     logger.info(f"Fetching event by title: {title}")
     return repo.get_by_title(title)
 
+@router.get("/by-region/{region_id}", response_model=List[Event])
+@cache_response(ttl=300)
+@handle_app_exceptions
+async def read_events_by_region(
+    region_id: str,
+    repo: EventRepository = Depends(get_event_repo)
+):
+    """Get events by region ID"""
+    logger.info(f"Fetching events for region: {region_id}")
+    return repo.get_by_region(region_id)
+
 @router.post("/query", response_model=List[Event])
 @cache_response(ttl=60)
 @handle_app_exceptions
@@ -76,6 +74,7 @@ async def query_events(
     request: Request,
     start_date: Optional[str] = Query(None, regex=r"^\d{4}-\d{2}-\d{2}$"),
     end_date: Optional[str] = Query(None, regex=r"^\d{4}-\d{2}-\d{2}$"),
+    region_id: Optional[str] = Query(None, description="Filter by region ID"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     repo: EventRepository = Depends(get_event_repo),
@@ -105,6 +104,7 @@ async def query_events(
         field_queries=field_queries,
         start_date=start_date,
         end_date=end_date,
+        region_id=region_id,
         skip=skip,
         limit=limit
     )

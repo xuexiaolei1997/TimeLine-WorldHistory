@@ -65,6 +65,7 @@ function App() {
   const { t } = useTranslation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
+  const [regions, setRegions] = useState([]);
   const [timezone, setTimezone] = useState(8); // 默认北京时间UTC+8
   const [rotationSpeed, setRotationSpeed] = useState(0); // 默认自转速度
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -77,6 +78,7 @@ function App() {
         const data = await loadInitialData();
         console.log('Data loaded successfully:', data);
         setEvents(data.events);
+        setRegions(data.regions || []);
       } catch (error) {
         console.error('Failed to load data:', error);
       }
@@ -182,6 +184,7 @@ function App() {
           <Earth3D 
             currentDate={currentDate}
             events={events}
+            regions={regions}
             timezone={timezone}
             rotationSpeed={rotationSpeed}
             onZoomChange={setZoomLevel}

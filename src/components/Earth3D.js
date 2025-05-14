@@ -1,8 +1,8 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-const Earth3D = ({ currentDate, events, timezone, rotationSpeed, onZoomChange }) => {
+const Earth3D = ({ currentDate, events, regions, timezone, rotationSpeed, onZoomChange }) => {
   const mountRef = useRef(null);
   const sceneRef = useRef(new THREE.Scene());
   const rendererRef = useRef(null);
@@ -16,8 +16,10 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed, onZoomChange })
   const [hoveredEvent, setHoveredEvent] = useState(null);
   const tooltipRef = useRef(null);
   const linesRef = useRef([]);
+  const regionsRef = useRef([]);
   const lastMousePosition = useRef({ clientX: 0, clientY: 0 });
   const directionalLightRef = useRef(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
 
   useEffect(() => {
     // 初始化Three.js场景 (只运行一次)
@@ -109,15 +111,54 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed, onZoomChange })
     };
   }, []);
 
+  // 渲染区域边界
+  const renderRegions = useCallback(() => {
+    if (!earthRef.current) return;
+    
+    // 清除旧区域
+    regionsRef.current.forEach(region => earthRef.current.remove(region));
+    regionsRef.current = [];
+    
+    // 渲染新区域
+    regions.forEach(region => {
+      const points = region.boundary.coordinates[0].map(coord => {
+        const lat = coord[0];
+        const lng = coord[1];
+        const phi = (90 - lat) * (Math.PI / 180);
+        const theta = (lng + 180) * (Math.PI / 180);
+        const radius = 2.01; // 略高于地球表面
+        
+        return new THREE.Vector3(
+          -radius * Math.sin(phi) * Math.cos(theta),
+          radius * Math.cos(phi),
+          radius * Math.sin(phi) * Math.sin(theta)
+        );
+      });
+      
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({
+        color: region.id === selectedRegion?.id ? 0xff0000 : 0x00ff00,
+        linewidth: 2
+      });
+      
+      const line = new THREE.LineLoop(geometry, material);
+      line.userData.region = region;
+      earthRef.current.add(line);
+      regionsRef.current.push(line);
+    });
+  }, [regions, selectedRegion]);
+
   useEffect(() => {
     // 优化动画循环和标记更新
     let animationFrameId;
     let lastMarkerUpdate = 0;
     let lastLightUpdate = 0;
     let lastRaycastUpdate = 0;
+    let lastRegionUpdate = 0;
     const markerUpdateThreshold = 10000; // 标记更新间隔100ms
     const lightUpdateThreshold = 50000; // 光源更新间隔500ms
     const raycastThreshold = 100; // 射线检测间隔100ms
+    const regionUpdateThreshold = 1000; // 区域更新间隔1s
     
     // 缓存可见事件
     const visibleEvents = zoomLevel > 0 ? 
@@ -158,6 +199,12 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed, onZoomChange })
       if (timestamp - lastMarkerUpdate > markerUpdateThreshold) {
         lastMarkerUpdate = timestamp;
         updateMarkers();
+      }
+      
+      // 限制区域更新频率
+      if (timestamp - lastRegionUpdate > regionUpdateThreshold) {
+        lastRegionUpdate = timestamp;
+        renderRegions();
       }
 
       // 限制光源更新频率
@@ -227,7 +274,7 @@ const Earth3D = ({ currentDate, events, timezone, rotationSpeed, onZoomChange })
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [currentDate, events, timezone, rotationSpeed]);
+  }, [currentDate, events, regions, timezone, rotationSpeed, renderRegions]);
 
   const updateSunPosition = (date, tzOffset) => {
     if (!directionalLightRef.current) return;

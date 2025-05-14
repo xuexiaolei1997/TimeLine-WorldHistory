@@ -26,6 +26,15 @@ class EventRepository(BaseRepository[Event]):
             logger.error(f"Failed to get event by title {title}", exc_info=True)
             raise
 
+    def get_by_region(self, region_id: str) -> List[Event]:
+        """Get events by region ID"""
+        try:
+            results = self.collection.find({"region_id": region_id})
+            return [Event(**doc) for doc in results]
+        except PyMongoError as e:
+            logger.error(f"Failed to get events for region {region_id}", exc_info=True)
+            raise
+
     def search(self, query: str, skip: int = 0, limit: int = 100) -> List[Event]:
         """Search events by title or description with pagination"""
         try:
@@ -63,6 +72,7 @@ class EventRepository(BaseRepository[Event]):
                    field_queries: Optional[dict] = None,
                    start_date: Optional[str] = None,
                    end_date: Optional[str] = None,
+                   region_id: Optional[str] = None,
                    skip: int = 0,
                    limit: int = 100) -> List[Event]:
         """
@@ -95,6 +105,10 @@ class EventRepository(BaseRepository[Event]):
                 if end_date:
                     date_query["$lte"] = end_date
                 query["date.start"] = date_query
+                
+            # Handle region filter
+            if region_id:
+                query["region_id"] = region_id
                 
             # Validate pagination
             skip = max(0, skip)
