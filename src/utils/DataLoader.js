@@ -1,216 +1,216 @@
-
 import config from '../config';
 
-// 实际API调用
-const fetchApiData = async (endpoint) => {
+// Generate request ID
+const generateRequestId = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+// API request timeout control
+const timeout = (promise, ms) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), ms)
+    )
+  ]);
+};
+
+class ApiError extends Error {
+  constructor(error, requestId) {
+    super(error.message);
+    this.type = error.type;
+    this.code = error.code;
+    this.details = error.details;
+    this.retryAfter = error.retry_after;
+    this.requestId = requestId;
+  }
+}
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const handleApiResponse = async (response) => {
+  const data = await response.json();
+  const requestId = response.headers.get('X-Request-ID');
+  
+  if (!data.success) {
+    throw new ApiError(data.error, requestId);
+  }
+  
+  return { data: data.data, requestId };
+};
+
+const fetchWithRetry = async (url, options = {}, retries = 3) => {
+  const baseDelay = 1000; // Start with 1 second delay
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      
+      if (response.status === 429) { // Rate limited
+        const data = await response.json();
+        const retryAfter = data.detail?.retry_after || Math.pow(2, i) * baseDelay;
+        console.warn(`Rate limited, retrying after ${retryAfter}ms`);
+        await sleep(retryAfter);
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      if (i === retries - 1) throw error; // Last retry failed
+      
+      const delay = Math.pow(2, i) * baseDelay;
+      console.warn(`Request failed, retrying in ${delay}ms`, error);
+      await sleep(delay);
+    }
+  }
+};
+
+// Actual API call
+const fetchApiData = async (endpoint, options = {}) => {
   try {
-    const response = await fetch(`${config.apiBaseUrl}/${endpoint}`);
+    const { method = 'GET', body, headers = {} } = options;
+    const requestId = generateRequestId();
+    
+    const req_config = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Request-ID': requestId,
+        ...headers
+      },
+      credentials: 'include'
+    };
+    
+    if (body) {
+      req_config.body = JSON.stringify(body);
+    }
+
+    const response = await timeout(
+      fetchWithRetry(`${config.apiBaseUrl}/${endpoint}`, req_config),
+      config.apiTimeout
+    );
+
+    const { data, requestId: serverRequestId } = await handleApiResponse(response);
+    return { 
+      data,
+      requestId: serverRequestId || requestId,
+      performanceData: {
+        responseTime: response.headers.get('X-Response-Time')
+      }
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    // Convert other errors to ApiError format
+    throw new ApiError({
+      type: 'CLIENT_ERROR',
+      message: error.message,
+      details: { originalError: error.toString() }
+    });
+  }
+};
+
+// Mock data loading
+const fetchData = async (file) => {
+  try {
+    const response = await fetch(`/mock-data/${file}`);
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+      throw new Error(`Failed to load mock data: ${file}`);
     }
     return await response.json();
   } catch (error) {
-    console.error(`Error calling API endpoint ${endpoint}:`, error);
+    console.error(`Error loading mock data ${file}:`, error);
     throw error;
   }
 };
 
-// 模拟数据加载
-const fetchData = async (file) => {
-  try {
-    console.log('Using mock data for:', file);
-    
-    // 模拟events.json数据
-    if (file === 'events.json') {
-      return [
-        {
-          id: "pyramids",
-          title: { en: "Construction of Pyramids", zh: "金字塔建造" },
-          period: "ancient",
-          date: { start: "-2600-01-01", end: "-2500-12-31" },
-          location: { coordinates: [29.9792, 31.1342], zoomLevel: 4 },
-          description: { en: "Construction of the Great Pyramids of Giza", zh: "吉萨大金字塔的建造时期" },
-          media: { images: ["pyramid.jpg"] }
-        },
-        {
-          id: "roman-empire",
-          title: { en: "Roman Empire", zh: "罗马帝国" },
-          period: "ancient",
-          date: { start: "-27-01-16", end: "476-09-04" },
-          location: { coordinates: [41.9028, 12.4964], zoomLevel: 3 },
-          description: { en: "Rise and fall of the Roman Empire", zh: "罗马帝国的兴衰" }
-        },
-        {
-          id: "great-wall",
-          title: { en: "Great Wall Construction", zh: "长城修建" },
-          period: "medieval",
-          date: { start: "1368-01-01", end: "1644-12-31" },
-          location: { coordinates: [40.4319, 116.5704], zoomLevel: 4 },
-          description: { en: "Ming Dynasty reconstruction of the Great Wall", zh: "明朝时期长城的重建" }
-        },
-        {
-          id: "industrial-revolution",
-          title: { en: "Industrial Revolution", zh: "工业革命" },
-          period: "modern",
-          date: { start: "1760-01-01", end: "1840-12-31" },
-          location: { coordinates: [51.5074, -0.1278], zoomLevel: 3 },
-          description: { en: "Transition to new manufacturing processes", zh: "新型制造工艺的转型时期" }
-        }
-      ];
-    }
-
-    // 模拟periods.json数据
-    if (file === 'periods.json') {
-      return {
-        ancient: { name: "Ancient", color: "#8B4513" },
-        medieval: { name: "Medieval", color: "#556B2F" },
-        modern: { name: "Modern", color: "#4682B4" }
-      };
-    }
-
-    // 模拟regions.json数据
-    if (file === 'regions.json') {
-      return [
-        {
-          id: "egypt",
-          name: "Ancient Egypt",
-          period: "ancient",
-          boundary: {
-            type: "Polygon",
-            coordinates: [[
-              [31.0, 29.0],
-              [31.0, 30.0],
-              [32.0, 30.0],
-              [32.0, 29.0],
-              [31.0, 29.0]
-            ]]
-          }
-        },
-        {
-          id: "roman-empire",
-          name: "Roman Empire",
-          period: "ancient",
-          boundary: {
-            type: "Polygon",
-            coordinates: [[
-              [10.0, 35.0],
-              [10.0, 45.0],
-              [30.0, 45.0],
-              [30.0, 35.0],
-              [10.0, 35.0]
-            ]]
-          }
-        }
-      ];
-    }
-
-    throw new Error(`No mock data available for ${file}`);
-  } catch (error) {
-    console.error(`Error loading mock data for ${file}:`, error);
-    throw error;
-  }
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? null : date;
 };
 
-// 模拟API请求延迟
-const simulateNetworkDelay = () => 
-  new Promise(resolve => setTimeout(resolve, 500));
-
-// 转换事件数据结构
 const transformEvent = (event) => ({
   id: event.id,
   title: event.title.zh || event.title.en,
-  startDate: event.date.start,
-  endDate: event.date.end,
+  startDate: parseDate(event.date.start),
+  endDate: parseDate(event.date.end),
   location: {
     coordinates: event.location.coordinates,
     zoomLevel: event.location.zoomLevel,
-    highlightColor: "#FF0000" // 默认颜色
+    highlightColor: event.location.highlightColor || "#FF0000"
   },
   contentRefs: {
-    articles: [],
+    articles: event.contentRefs?.articles || [],
     images: event.media?.images || []
   }
 });
 
-export const loadInitialData = async (zoomLevel = 0) => {
-  await simulateNetworkDelay();
-  
-  let events, periods, regions;
-  
-  if (config.useMockData) {
-    [events, periods, regions] = await Promise.all([
-      fetchData('events.json'),
-      fetchData('periods.json'),
-      fetchData('regions.json')
-    ]);
-  } else {
-    [events, periods, regions] = await Promise.all([
-      fetchApiData('events'),
-      fetchApiData('periods'),
-      fetchApiData('regions')
-    ]);
+export const loadInitialData = async (zoomLevel = 0, page = 1, pageSize = 20) => {
+  try {
+    let events, periods, regions;
+    
+    if (config.useMockData) {
+      [events, periods, regions] = await Promise.all([
+        fetchData('events.json'),
+        fetchData('periods.json'),
+        fetchData('regions.json')
+      ]);
+    } else {
+      [events, periods, regions] = await Promise.all([
+        fetchApiData('events', {
+          method: 'GET',
+          body: {
+            skip: (page - 1) * pageSize,
+            limit: pageSize,
+            zoomLevel
+          }
+        }).then(res => res.data),
+        fetchApiData('periods').then(res => res.data),
+        fetchApiData('regions').then(res => res.data)
+      ]);
+    }
+
+    // Filter events based on zoom level
+    const filteredEvents = events.filter(event => 
+      zoomLevel === 0 || event.location.zoomLevel <= zoomLevel
+    );
+
+    return {
+      events: filteredEvents.map(transformEvent),
+      periods,
+      regions
+    };
+  } catch (error) {
+    console.error('Failed to load initial data:', error);
+    throw error;
   }
-
-  // Filter events based on zoom level
-  const filteredEvents = events.filter(event => 
-    zoomLevel === 0 || event.location.zoomLevel <= zoomLevel
-  );
-
-  return {
-    events: filteredEvents.map(event => ({
-      ...transformEvent(event),
-      startDate: parseDate(event.date.start),
-      endDate: parseDate(event.date.end)
-    })),
-    periods,
-    regions
-  };
 };
 
-export const loadEventDetails = async (eventId, zoomLevel = 0) => {
-  await simulateNetworkDelay();
+export const loadEventDetails = async (eventId) => {
+  if (!eventId) return null;
   
-  let events;
-  if (config.useMockData) {
-    events = await fetchData('events.json');
-  } else {
-    events = await fetchApiData(`events/${eventId}`);
+  try {
+    const event = config.useMockData
+      ? (await fetchData('events.json')).find(e => e.id === eventId)
+      : await fetchApiData(`events/${eventId}`).then(res => res.data);
+      
+    return event ? transformEvent(event) : null;
+  } catch (error) {
+    console.error(`Failed to load event details for ${eventId}:`, error);
+    throw error;
   }
-  const event = events.find(e => e.id === eventId);
-  if (!event) return null;
-  
-  // Only load details if zoom level is sufficient
-  if (zoomLevel > 0 && event.location.zoomLevel > zoomLevel) {
-    return null;
-  }
-  
-  const transformed = transformEvent(event);
-  return {
-    ...transformed,
-    startDate: parseDate(event.date.start),
-    endDate: parseDate(event.date.end),
-    articleContent: `这是关于${transformed.title}的详细文章内容...`,
-    images: transformed.contentRefs.images.map(img => ({
-      url: img,
-      caption: `${transformed.title}相关图片`
-    }))
-  };
 };
 
-// 辅助函数：解析日期字符串
-function parseDate(dateStr) {
-  if (dateStr.startsWith("-")) {
-    // 公元前日期处理
-    const year = parseInt(dateStr.substring(1, 5));
-    const month = parseInt(dateStr.substring(6, 8)) - 1;
-    const day = parseInt(dateStr.substring(9, 11));
-    return new Date(-year, month, day);
-  }
-  return new Date(dateStr);
-}
-
-// 导出所有函数
-export default {
+const DataLoader = {
   loadInitialData,
   loadEventDetails
 };
+
+export default DataLoader;

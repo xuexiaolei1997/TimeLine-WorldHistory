@@ -1,5 +1,5 @@
 {
-  "welcome": "Welcome",
+  "welcome": "World History Timeline",
   "timeline": "Timeline",
   "events": "Events",
   "periods": "Periods",
@@ -10,5 +10,96 @@
   "stop": "Stop",
   "normal": "Normal",
   "fast": "Fast",
-  "close": "Close"
+  "close": "Close",
+  "error": "Error",
+  "retry": "Retry",
+  "unknownError": "An unknown error occurred",
+  "databaseError": "Database Error",
+  "validationError": "Validation Error",
+  "timeoutError": "Connection Timeout",
+  "pleaseCheckConnection": "Please check your internet connection and try again",
+  "loadingError": "Error loading data",
+  "tryAgain": "Please try again",
+  "rateLimitError": "Too Many Requests",
+  "rateLimitMessage": "Please wait a moment before trying again",
+  "retryingIn": "Retrying in {{seconds}} seconds",
+  "admin": {
+    "title": "Admin Panel",
+    "search": "Search",
+    "reset": "Reset",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "tabs": {
+      "events": "Events",
+      "periods": "Periods",
+      "regions": "Regions"
+    },
+    "table": {
+      "title": "Title",
+      "period": "Period",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "actions": "Actions",
+      "rowsPerPage": "Rows per page"
+    },
+    "form": {
+      "addTitle": "Add New",
+      "editTitle": "Edit",
+      "title": "Title",
+      "period": "Period",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "name": "Name",
+      "startYear": "Start Year",
+      "endYear": "End Year",
+      "zoomLevel": "Zoom Level",
+      "coordinates": "Coordinates",
+      "coordinatesHelp": "Format: latitude,longitude",
+      "description": "Description",
+      "errors": {
+        "required": "This field is required",
+        "invalidDate": "End date must be after start date",
+        "invalidYear": "End year must be after start year",
+        "invalidCoordinates": "Invalid coordinates format"
+      }
+    }
+  },
+  "periods": {
+    "ancient": "Ancient",
+    "medieval": "Medieval",
+    "modern": "Modern"
+  },
+  "performance": {
+    "title": "Performance Metrics",
+    "serviceStatus": "Service Status",
+    "noData": "No performance data available yet",
+    "noAlerts": "No active alerts",
+    "viewMetrics": "View Performance Metrics",
+    "backendUnreachable": "Backend services unreachable",
+    "tabs": {
+      "metrics": "Metrics",
+      "alerts": "Alerts"
+    },
+    "table": {
+      "endpoint": "Endpoint",
+      "average": "Average",
+      "p95": "95th Percentile",
+      "max": "Maximum",
+      "samples": "Samples",
+      "errorRate": "Error Rate"
+    },
+    "alert": {
+      "title": "Performance Alert",
+      "message": "{{endpoint}} has {{metric}} of {{value}} (threshold: {{threshold}})"
+    },
+    "metrics": {
+      "average_response_time": "average response time",
+      "p95_response_time": "95th percentile response time",
+      "error_rate": "error rate",
+      "request_rate": "request rate"
+    }
+  }
 }

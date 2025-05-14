@@ -6,48 +6,69 @@ from fastapi import Request
 import logging
 from fastapi.logger import logger
 from pydantic import BaseModel
-import pickle
 from datetime import timedelta
+from core.exceptions import DatabaseError
+
+logger = logging.getLogger(__name__)
 
 class CacheConfig(BaseModel):
     host: str = "localhost"
     port: int = 6379
     db: int = 0
     password: Optional[str] = None
+    socket_timeout: int = 5
+    socket_connect_timeout: int = 5
+    retry_on_timeout: bool = True
     default_ttl: int = 300  # 5 minutes
 
 class CacheManager:
     def __init__(self, config: CacheConfig):
-        self.config = config
-        self.client = redis.Redis(
-            host=config.host,
-            port=config.port,
-            db=config.db,
-            password=config.password,
-            decode_responses=False
-        )
-        self.default_ttl = config.default_ttl
-
-    def get(self, key: str) -> Optional[Any]:
         try:
-            cached = self.client.get(key)
-            if cached:
-                return pickle.loads(cached)
-            return None
+            self.config = config
+            self.client = redis.Redis(
+                host=config.host,
+                port=config.port,
+                db=config.db,
+                password=config.password,
+                socket_timeout=config.socket_timeout,
+                socket_connect_timeout=config.socket_connect_timeout,
+                retry_on_timeout=config.retry_on_timeout,
+                decode_responses=True
+            )
+            # Test connection
+            self.client.ping()
+        except redis.RedisError as e:
+            logger.error("Cache initialization failed", exc_info=True)
+            raise DatabaseError({
+                "message": "Failed to initialize cache connection",
+                "details": {"error": str(e)}
+            })
+
+    def get(self, key: str) -> Any:
+        try:
+            data = self.client.get(key)
+            return json.loads(data) if data else None
         except redis.RedisError as e:
             logger.error(f"Cache get failed for key {key}", exc_info=True)
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"Cache data corruption for key {key}", exc_info=True)
+            self.delete(key)
             return None
 
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         try:
-            ttl = ttl if ttl is not None else self.default_ttl
-            return self.client.set(
+            ttl = ttl if ttl is not None else self.config.default_ttl
+            return bool(self.client.set(
                 key,
-                pickle.dumps(value),
+                json.dumps(value),
                 ex=timedelta(seconds=ttl)
-            )
+            ))
         except redis.RedisError as e:
             logger.error(f"Cache set failed for key {key}", exc_info=True)
+            return False
+        except (TypeError, json.JSONEncodeError) as e:
+            logger.error(f"Cache serialization failed for key {key}", exc_info=True)
             return False
 
     def delete(self, key: str) -> bool:
@@ -63,6 +84,32 @@ class CacheManager:
             return True
         except redis.RedisError as e:
             logger.error("Cache clear failed", exc_info=True)
+            return False
+
+    def close(self):
+        try:
+            self.client.close()
+        except redis.RedisError as e:
+            logger.error("Error closing cache connection", exc_info=True)
+
+    def exists(self, key: str) -> bool:
+        try:
+            return bool(self.client.exists(key))
+        except redis.RedisError as e:
+            logger.error(f"Cache exists check failed for key {key}", exc_info=True)
+            return False
+
+    def increment(self, key: str, amount: int = 1) -> Optional[int]:
+        try:
+            return self.client.incrby(key, amount)
+        except redis.RedisError as e:
+            logger.error(f"Cache increment failed for key {key}", exc_info=True)
+            return None
+
+    def health_check(self) -> bool:
+        try:
+            return bool(self.client.ping())
+        except redis.RedisError:
             return False
 
 def cache_response(ttl: int = 300):

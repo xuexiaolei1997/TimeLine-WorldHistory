@@ -91,11 +91,16 @@ class EventRepository(BaseRepository[Event]):
         try:
             query = {}
             
-            # Process field queries - all fields use fuzzy matching
+            # Process field queries
             if field_queries:
                 for field, value in field_queries.items():
                     if value is not None:
-                        query[field] = {"$regex": str(value), "$options": "i"}
+                        # Special handling for zoom level (numeric comparison)
+                        if field == 'location.zoomLevel' and isinstance(value, dict):
+                            query[field] = value
+                        else:
+                            # Default to fuzzy matching for strings
+                            query[field] = {"$regex": str(value), "$options": "i"}
                 
             # Handle optional date range
             if start_date or end_date:

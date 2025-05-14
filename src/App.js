@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import i18n from 'i18next';
 import { initReactI18next, useTranslation } from 'react-i18next';
 import { 
@@ -20,11 +21,16 @@ import {
   Select,
   MenuItem,
   Slider,
-  Button
+  Button,
+  CircularProgress,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Earth3D from './components/Earth3D';
 import TimelineController from './components/Timeline/TimelineController';
+import AdminPanel from './components/Admin/AdminPanel';
+import HealthMonitor from './components/HealthMonitor';
 import { loadInitialData } from './utils/DataLoader';
 
 const theme = createTheme({
@@ -66,29 +72,169 @@ function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [regions, setRegions] = useState([]);
-  const [timezone, setTimezone] = useState(8); // 默认北京时间UTC+8
-  const [rotationSpeed, setRotationSpeed] = useState(0); // 默认自转速度
+  const [timezone, setTimezone] = useState(8);
+  const [rotationSpeed, setRotationSpeed] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [retryCountdown, setRetryCountdown] = useState(null);
+
+  const handleError = useCallback((error) => {
+    console.error('Application error:', error);
+    const errorDetails = error.requestId ? ` (ID: ${error.requestId})` : '';
+    
+    if (error.type === 'DATABASE_ERROR') {
+      setError({
+        title: t('databaseError'),
+        message: `${error.message}${errorDetails}`,
+        retry: true,
+        requestId: error.requestId
+      });
+    } else if (error.type === 'VALIDATION_ERROR') {
+      setNotification({
+        open: true,
+        message: `${t('validationError')}: ${error.message}${errorDetails}`,
+        severity: 'warning'
+      });
+    } else if (error.type === 'CLIENT_ERROR') {
+      if (error.message.includes('timeout')) {
+        setError({
+          title: t('timeoutError'),
+          message: `${t('pleaseCheckConnection')}${errorDetails}`,
+          retry: true,
+          requestId: error.requestId
+        });
+      } else if (error.message.includes('Too many requests')) {
+        const retryAfter = error.details?.retry_after || 60;
+        setRetryCountdown(retryAfter);
+        setError({
+          title: t('rateLimitError'),
+          message: `${t('rateLimitMessage')}${errorDetails}`,
+          retry: false,
+          requestId: error.requestId
+        });
+
+        // Start countdown
+        const timer = setInterval(() => {
+          setRetryCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              setError(null);
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => clearInterval(timer);
+      } else {
+        setNotification({
+          open: true,
+          message: `${error.message}${errorDetails}`,
+          severity: 'error'
+        });
+      }
+    } else {
+      setError({
+        title: t('error'),
+        message: `${error.message || t('unknownError')}${errorDetails}`,
+        retry: true,
+        requestId: error.requestId
+      });
+    }
+  }, [t]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Loading initial data...');
+        setLoading(true);
+        setError(null);
         const data = await loadInitialData();
-        console.log('Data loaded successfully:', data);
         setEvents(data.events);
         setRegions(data.regions || []);
       } catch (error) {
-        console.error('Failed to load data:', error);
+        handleError(error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [handleError]);
+
+  const handleRetry = () => {
+    setError(null);
+    window.location.reload();
+  };
+
+  if (loading) {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          backgroundColor: 'background.default'
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh',
+          backgroundColor: 'background.default',
+          color: 'error.main',
+          p: 3,
+          textAlign: 'center'
+        }}
+      >
+        <Typography variant="h5" gutterBottom>
+          {error.title}
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {error.message}
+        </Typography>
+        {error.requestId && (
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 2 }}>
+            {t('requestId')}: {error.requestId}
+          </Typography>
+        )}
+        {retryCountdown && (
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            {t('retryingIn', { seconds: retryCountdown })}
+          </Typography>
+        )}
+        {error.retry && (
+          <Button 
+            variant="contained" 
+            onClick={handleRetry}
+            sx={{ mt: 2 }}
+          >
+            {t('retry')}
+          </Button>
+        )}
+      </Box>
+    );
+  }
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <Router>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Routes>
+          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/" element={
       <Box sx={{ display: 'flex', height: '100vh' }}>
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
           <Toolbar>
@@ -196,8 +342,24 @@ function App() {
             Zoom level: {zoomLevel}
           </div>
         </Box>
+        <HealthMonitor />
       </Box>
+        } />
+      </Routes>
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={6000}
+          onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        >
+          <Alert 
+            onClose={() => setNotification(prev => ({ ...prev, open: false }))} 
+            severity={notification.severity}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
     </ThemeProvider>
+    </Router>
   );
 }
 

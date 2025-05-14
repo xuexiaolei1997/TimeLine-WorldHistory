@@ -1,40 +1,26 @@
 from pymongo import MongoClient
+from pymongo.errors import PyMongoError, ConnectionFailure
 from contextlib import contextmanager
 from typing import Generator
 import yaml
 import os
-from pathlib import Path
 import logging
-from pymongo.errors import PyMongoError
+from core.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     def __init__(self):
         try:
-            from dotenv import load_dotenv
-            load_dotenv()
-            
-            config_path = Path(__file__).parent.parent / "config.yaml"
-            if not config_path.exists():
-                raise FileNotFoundError(f"Config file not found at {config_path}")
-            
-            with open(config_path) as f:
+            # Load database configuration
+            with open("config.yaml", "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-            
-            if not config.get("database", {}).get("mongodb"):
-                raise ValueError("Missing MongoDB configuration in config.yaml")
-            
-            # Process environment variable placeholders
-            mongo_config = {}
-            for key, value in config["database"]["mongodb"].items():
-                if isinstance(value, str) and value.startswith('${') and '}' in value:
-                    var_part = value[2:-1].split(':')
-                    env_var = var_part[0]
-                    default = var_part[1] if len(var_part) > 1 else ''
-                    mongo_config[key] = os.getenv(env_var, default)
-                else:
-                    mongo_config[key] = value
+                mongo_config = config.get("database", {}).get("mongodb", {})
+
+            if not mongo_config:
+                raise ValueError("MongoDB configuration not found in config.yaml")
+
+            # Create MongoDB client with enhanced options
             self.client = MongoClient(
                 host=mongo_config["host"],
                 port=mongo_config["port"],
@@ -45,24 +31,36 @@ class DatabaseManager:
                 socketTimeoutMS=30000,
                 maxPoolSize=50,
                 retryWrites=True,
-                retryReads=True
+                retryReads=True,
+                w="majority",  # Write concern for better consistency
+                readPreference="primaryPreferred"  # Read preference for better availability
             )
+            
             self.db = self.client[mongo_config["database"]]
             
             if not self.check_connection():
-                raise ConnectionError("Failed to connect to MongoDB")
+                raise ConnectionFailure("Failed to connect to MongoDB")
                 
         except Exception as e:
             logger.error("Database initialization failed", exc_info=True)
-            raise
+            raise DatabaseError({
+                "message": "Failed to initialize database connection",
+                "details": {"error": str(e)}
+            })
 
     @contextmanager
     def get_db(self) -> Generator[MongoClient, None, None]:
         try:
+            if not self.check_connection():
+                # Try to reconnect
+                self.client.admin.command('ping')
             yield self.db
         except PyMongoError as e:
             logger.error("Database operation failed", exc_info=True)
-            raise
+            raise DatabaseError({
+                "message": "Database operation failed",
+                "details": {"error": str(e)}
+            })
 
     def check_connection(self) -> bool:
         try:
@@ -71,8 +69,17 @@ class DatabaseManager:
         except PyMongoError as e:
             logger.warning("Database connection check failed", exc_info=True)
             return False
+            
+    def close(self):
+        try:
+            if self.client:
+                self.client.close()
+        except PyMongoError as e:
+            logger.error("Error closing database connection", exc_info=True)
+            raise DatabaseError({
+                "message": "Failed to close database connection",
+                "details": {"error": str(e)}
+            })
 
+# Create a global instance
 db_manager = DatabaseManager()
-
-def get_db():
-    return db_manager.get_db()

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request, Query
-from typing import List, Optional
+from typing import List, Optional, Dict
 import logging
 from fastapi.logger import logger
 from utils.cache import cache_response
@@ -11,6 +11,13 @@ from utils.decorators import handle_app_exceptions
 
 router = APIRouter(prefix="/periods", tags=["periods"])
 
+def transform_period(period: Period) -> Dict[str, str]:
+    """Transform period data to match frontend expected format"""
+    return {
+        "name": period.name.zh or period.name.en,
+        "color": period.color
+    }
+
 def get_period_repo(
     request: Request,
     db = Depends(get_db)
@@ -20,6 +27,18 @@ def get_period_repo(
         repo = PeriodRepository(database)
         repo.cache = request.app.state.cache
         return repo
+
+@router.get("/", response_model=Dict[str, Dict[str, str]])
+@cache_response(ttl=300)
+@handle_app_exceptions
+async def list_periods(
+    request: Request,
+    repo: PeriodRepository = Depends(get_period_repo)
+):
+    """Get all periods in frontend-compatible format"""
+    logger.info("Fetching all periods")
+    periods = repo.query_periods()
+    return {p.periodId: transform_period(p) for p in periods}
 
 @router.post("/", response_model=Period)
 @handle_app_exceptions

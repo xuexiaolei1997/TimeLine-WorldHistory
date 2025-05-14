@@ -12,10 +12,57 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from core.exceptions import add_exception_handlers
+from utils.rate_limiter import rate_limit_middleware
+from utils.performance import performance_monitor
+from utils.performance_logger import performance_logger
 import logging
 from logging.config import dictConfig
 
 logger = logging.getLogger(__name__)
+
+# Configure logging
+dictConfig({
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        },
+        'request': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(request_id)s - %(message)s',
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'default',
+            'stream': 'ext://sys.stdout',
+        },
+        'request': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'request',
+            'stream': 'ext://sys.stdout',
+        },
+        'performance': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'request',
+            'filename': os.path.join('logs', 'performance.log'),
+            'maxBytes': 10485760,  # 10MB
+            'backupCount': 5,
+        }
+    },
+    'loggers': {
+        'performance': {
+            'handlers': ['performance', 'console'],
+            'level': 'INFO',
+            'propagate': False
+        }
+    },
+    'root': {
+        'level': 'INFO',
+        'handlers': ['console'],
+    },
+})
 
 
 def include_routers_from_directory(app: FastAPI, endpoints_root_directory: str):
@@ -76,29 +123,6 @@ class FastAPIRunner:
         初始化FastAPI应用
         """
 
-        
-
-        # 配置日志
-        dictConfig({
-            'version': 1,
-            'formatters': {
-                'default': {
-                    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                },
-            },
-            'handlers': {
-                'console': {
-                    'class': 'logging.StreamHandler',
-                    'formatter': 'default',
-                    'stream': 'ext://sys.stdout',
-                },
-            },
-            'root': {
-                'level': 'INFO',
-                'handlers': ['console'],
-            },
-        })
-
         @asynccontextmanager
         async def fastapi_lifespan(app: FastAPI):
             logger.info('FastAPI application starting up')
@@ -121,12 +145,21 @@ class FastAPIRunner:
             response.headers["X-Request-ID"] = request_id
             return response
 
+        # 添加性能监控中间件
+        app.middleware("http")(performance_monitor)
+
+        # 添加速率限制中间件
+        app.middleware("http")(rate_limit_middleware)
+
         # 开启CORS
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=[
+                "http://localhost:3000",  # 开发环境
+                "http://localhost:5000",   # 生产构建
+            ],
             allow_credentials=True,
-            allow_methods=["*"],
+            allow_methods=["GET", "POST", "PUT", "DELETE"],
             allow_headers=["*"],
         )
 

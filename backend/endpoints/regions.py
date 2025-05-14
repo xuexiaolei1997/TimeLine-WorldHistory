@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, Request
-from typing import List, Optional
+from typing import List, Optional, Dict
 import logging
 from fastapi.logger import logger
 from utils.cache import cache_response
@@ -11,6 +11,19 @@ from utils.decorators import handle_app_exceptions
 
 router = APIRouter(prefix="/regions", tags=["regions"])
 
+def transform_region(region: Region) -> Dict:
+    """Transform region data to match frontend expected format"""
+    return {
+        "id": str(region.id),
+        "name": region.name.zh or region.name.en,
+        "period": region.period_id,
+        "boundary": {
+            "type": region.boundary.type,
+            "coordinates": region.boundary.coordinates
+        },
+        "color": region.color
+    }
+
 def get_region_repo(
     request: Request,
     db = Depends(get_db)
@@ -20,6 +33,18 @@ def get_region_repo(
         repo = RegionRepository(database)
         repo.cache = request.app.state.cache
         return repo
+
+@router.get("/", response_model=List[Dict])
+@cache_response(ttl=300)
+@handle_app_exceptions
+async def list_regions(
+    request: Request,
+    repo: RegionRepository = Depends(get_region_repo)
+):
+    """Get all regions in frontend-compatible format"""
+    logger.info("Fetching all regions")
+    regions = repo.query_regions()
+    return [transform_region(region) for region in regions]
 
 @router.post("/create", response_model=Region)
 @handle_app_exceptions

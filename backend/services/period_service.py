@@ -105,7 +105,7 @@ class PeriodRepository(BaseRepository[Period]):
             limit = min(100, max(1, limit))
             
             results = self.collection.find(query).skip(skip).limit(limit)
-            return [Period(**doc) for doc in results]
+            return [period for doc in results if (period := self.safe_convert_to_period(doc))]
             
         except PyMongoError as e:
             logger.error("Failed to query periods", exc_info=True)
