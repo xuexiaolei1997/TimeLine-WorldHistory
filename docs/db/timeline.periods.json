@@ -6,7 +6,10 @@
       "en": "Prehistoric",
       "zh": "史前时期"
     },
-    "description": "The period before written records, covering the origins of human civilization.",
+    "description": {
+      "en": "The period before written records, covering the origins of human civilization.",
+      "zh": "有文字记录之前的时期，涵盖人类文明的起源"
+    },
     "startYear": -10000,
     "endYear": -3500,
     "color": "#8B4513",
@@ -19,7 +22,10 @@
       "en": "Ancient Civilizations",
       "zh": "古代文明"
     },
-    "description": "The rise of early civilizations with written records and organized societies.",
+    "description": {
+      "en": "The rise of early civilizations with written records and organized societies.",
+      "zh": "有文字记录和组织社会的早期文明兴起时期"
+    },
     "startYear": -3500,
     "endYear": 500,
     "color": "#CD5C5C",
@@ -32,7 +38,10 @@
       "en": "Medieval",
       "zh": "中世纪"
     },
-    "description": "The period between ancient and modern times, characterized by feudalism and religious influence.",
+    "description": {
+      "en": "The period between ancient and modern times, characterized by feudalism and religious influence.",
+      "zh": "古代和现代之间的时期，以封建制度和宗教影响为特征"
+    },
     "startYear": 500,
     "endYear": 1500,
     "color": "#4682B4",
@@ -45,7 +54,10 @@
       "en": "Modern",
       "zh": "近现代"
     },
-    "description": "The period from the Renaissance to the present day, marked by industrialization and globalization.",
+    "description": {
+      "en": "The period from the Renaissance to the present day, marked by industrialization and globalization.",
+      "zh": "从文艺复兴到现代的时期，以工业化和全球化为标志"
+    },
     "startYear": 1500,
     "endYear": 2025,
     "color": "#32CD32",

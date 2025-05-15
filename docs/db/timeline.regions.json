@@ -5,7 +5,10 @@
       "en": "Mediterranean",
       "zh": "地中海"
     },
-    "description": "The Mediterranean region was central to ancient trade and cultural exchange.",
+    "description": {
+      "en": "The Mediterranean region was central to ancient trade and cultural exchange.",
+      "zh": "地中海地区是古代贸易和文化交流的中心"
+    },
     "boundary": {
       "type": "Polygon",
       "coordinates": [
@@ -28,7 +31,10 @@
       "en": "Yellow River Valley",
       "zh": "黄河流域"
     },
-    "description": "The cradle of ancient Chinese civilization.",
+    "description": {
+      "en": "The cradle of ancient Chinese civilization.",
+      "zh": "中国古代文明的摇篮"
+    },
     "boundary": {
       "type": "Polygon",
       "coordinates": [

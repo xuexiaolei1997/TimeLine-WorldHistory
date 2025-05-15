@@ -7,13 +7,17 @@ class PeriodName(BaseModel):
     en: str = Field(..., example="Ancient Rome", min_length=1)
     zh: str = Field(..., example="古罗马", min_length=1)
 
+class PeriodDescription(BaseModel):
+    """Localized period description"""
+    en: str = Field("", example="The Roman Empire was the post-Republican period...")
+    zh: str = Field("", example="罗马帝国是古罗马共和国时期之后的时期...")
+
 class PeriodBase(BaseModel):
     """Base period model with common fields"""
     name: PeriodName = Field(..., description="Localized period name")
-    description: str = Field(
-        "", 
-        description="Detailed description of the period",
-        example="The Roman Empire was the post-Republican period of ancient Rome..."
+    description: PeriodDescription = Field(
+        default_factory=PeriodDescription,
+        description="Localized description of the period"
     )
     startYear: int = Field(..., description="Start year of the period")
     endYear: int = Field(..., description="End year of the period")

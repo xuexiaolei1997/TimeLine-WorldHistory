@@ -7,6 +7,11 @@ class RegionName(BaseModel):
     en: str = Field(..., example="Mediterranean", min_length=1)
     zh: str = Field(..., example="地中海", min_length=1)
 
+class RegionDescription(BaseModel):
+    """Localized region description"""
+    en: str = Field("", example="The Mediterranean region was central to...")
+    zh: str = Field("", example="地中海地区是古代贸易和文化交流的中心")
+
 class RegionCoordinates(BaseModel):
     """Polygon coordinates for region boundary"""
     type: str = Field("Polygon", Literal=True)
@@ -29,10 +34,9 @@ class RegionCoordinates(BaseModel):
 class RegionBase(BaseModel):
     """Base region model with common fields"""
     name: RegionName = Field(..., description="Localized region name")
-    description: str = Field(
-        "",
-        description="Detailed description of the region",
-        example="The Mediterranean region was central to..."
+    description: RegionDescription = Field(
+        default_factory=RegionDescription,
+        description="Localized description of the region"
     )
     boundary: RegionCoordinates = Field(..., description="Polygon boundary coordinates")
     period_id: str = Field(..., description="Associated period ID")
