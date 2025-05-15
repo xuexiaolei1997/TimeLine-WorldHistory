@@ -1,229 +1,229 @@
-import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { 
-  Box, 
-  IconButton, 
-  Tooltip, 
-  Badge,
-  Dialog,
-  DialogTitle,
-  DialogContent,
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Typography,
   Alert,
   AlertTitle,
-  Collapse,
+  CircularProgress,
   Tabs,
   Tab,
-  Divider
+  Badge,
+  Chip,
+  useTheme
 } from '@mui/material';
-import { 
-  Check as CheckIcon, 
-  Warning as WarningIcon, 
-  Error as ErrorIcon,
-  Speed as SpeedIcon,
-  NotificationsActive as AlertIcon
-} from '@mui/icons-material';
-import config from '../config';
+import { useTranslation } from 'react-i18next';
+import axios from 'axios';
 
 const HealthMonitor = () => {
   const { t } = useTranslation();
-  const [health, setHealth] = useState({ status: 'unknown', services: {} });
-  const [metrics, setMetrics] = useState({});
-  const [alerts, setAlerts] = useState([]);
-  const [error, setError] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
-
-  const checkHealth = async () => {
-    try {
-      const [healthResponse, metricsResponse, alertsResponse] = await Promise.all([
-        fetch(`${config.apiBaseUrl}/health`),
-        fetch(`${config.apiBaseUrl}/health/metrics`),
-        fetch(`${config.apiBaseUrl}/health/alerts`)
-      ]);
-      
-      const healthData = await healthResponse.json();
-      const metricsData = await metricsResponse.json();
-      const alertsData = await alertsResponse.json();
-      
-      setHealth(healthData);
-      setMetrics(metricsData.data || {});
-      setAlerts(alertsData.data || []);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-      setHealth({ status: 'unhealthy', services: {} });
-      setMetrics({});
-      setAlerts([]);
-    }
-  };
+  const [healthData, setHealthData] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    checkHealth();
-    const interval = setInterval(checkHealth, 60000); // Check every minute
+    const fetchHealthData = async () => {
+      try {
+        const [healthResponse, alertsResponse] = await Promise.all([
+          axios.get('/api/health'),
+          axios.get('/api/health/alerts')
+        ]);
+
+        setHealthData(healthResponse.data);
+        setAlerts(alertsResponse.data);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHealthData();
+    const interval = setInterval(fetchHealthData, 30000); // 每30秒更新一次
+
     return () => clearInterval(interval);
   }, []);
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'healthy':
-        return <CheckIcon sx={{ color: 'success.main' }} />;
-      case 'degraded':
-        return <WarningIcon sx={{ color: 'warning.main' }} />;
-      case 'unhealthy':
-        return <ErrorIcon sx={{ color: 'error.main' }} />;
-      default:
-        return <WarningIcon sx={{ color: 'grey.500' }} />;
+  const renderMetrics = () => {
+    if (!healthData?.metrics) {
+      return (
+        <Typography variant="body2" color="textSecondary">
+          {t('performance.noData')}
+        </Typography>
+      );
     }
-  };
 
-  const getTooltipContent = () => {
-    if (error) return t('performance.backendUnreachable');
-    
-    const messages = [];
-    Object.entries(health.services).forEach(([service, status]) => {
-      messages.push(`${service}: ${status.status}${status.error ? ` (${status.error})` : ''}`);
-    });
-    return messages.join('\n');
-  };
-
-  const renderMetricsTable = () => (
-    <TableContainer component={Paper}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>{t('performance.table.endpoint')}</TableCell>
-            <TableCell align="right">{t('performance.table.average')}</TableCell>
-            <TableCell align="right">{t('performance.table.p95')}</TableCell>
-            <TableCell align="right">{t('performance.table.max')}</TableCell>
-            <TableCell align="right">{t('performance.table.errorRate')}</TableCell>
-            <TableCell align="right">{t('performance.table.samples')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {Object.entries(metrics).map(([endpoint, data]) => (
-            <TableRow 
-              key={endpoint}
-              sx={{ 
-                backgroundColor: data.error_rate > '5.0%' ? 'error.main' : 'inherit',
-                '&:hover': { backgroundColor: 'action.hover' }
-              }}
-            >
-              <TableCell component="th" scope="row">{endpoint}</TableCell>
-              <TableCell align="right">{data.average}</TableCell>
-              <TableCell align="right">{data.p95}</TableCell>
-              <TableCell align="right">{data.max}</TableCell>
-              <TableCell align="right">{data.error_rate}</TableCell>
-              <TableCell align="right">{data.samples}</TableCell>
+    return (
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>{t('performance.table.endpoint')}</TableCell>
+              <TableCell align="right">{t('performance.table.average')}</TableCell>
+              <TableCell align="right">{t('performance.table.p95')}</TableCell>
+              <TableCell align="right">{t('performance.table.max')}</TableCell>
+              <TableCell align="right">{t('performance.table.samples')}</TableCell>
+              <TableCell align="right">{t('performance.table.errorRate')}</TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
+          </TableHead>
+          <TableBody>
+            {Object.entries(healthData.metrics).map(([endpoint, metrics]) => (
+              <TableRow key={endpoint}>
+                <TableCell component="th" scope="row">
+                  {endpoint}
+                </TableCell>
+                <TableCell align="right">
+                  {metrics.average_response_time.toFixed(2)}ms
+                </TableCell>
+                <TableCell align="right">
+                  {metrics.p95_response_time.toFixed(2)}ms
+                </TableCell>
+                <TableCell align="right">
+                  {metrics.max_response_time.toFixed(2)}ms
+                </TableCell>
+                <TableCell align="right">
+                  {metrics.request_count}
+                </TableCell>
+                <TableCell align="right">
+                  <Chip
+                    size="small"
+                    label={`${(metrics.error_rate * 100).toFixed(1)}%`}
+                    color={metrics.error_rate > 0.05 ? 'error' : 'success'}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
 
-  const renderAlerts = () => (
-    <Box sx={{ mt: 2 }}>
-      {alerts.length > 0 ? (
-        alerts.map((alert, index) => (
-          <Alert 
-            key={`${alert.endpoint}-${alert.metric}-${alert.timestamp}`}
-            severity="warning"
-            sx={{ mb: 1 }}
-          >
-            <AlertTitle>{t('performance.alert.title')}</AlertTitle>
-            {t('performance.alert.message', {
-              endpoint: alert.endpoint,
-              metric: t(`performance.metrics.${alert.metric}`),
-              value: alert.value,
-              threshold: alert.threshold
-            })}
-          </Alert>
-        ))
-      ) : (
-        <Typography variant="body2" color="text.secondary">
+  const renderAlerts = () => {
+    if (!alerts?.length) {
+      return (
+        <Typography variant="body2" color="textSecondary">
           {t('performance.noAlerts')}
         </Typography>
-      )}
-    </Box>
-  );
+      );
+    }
+
+    return alerts.map((alert, index) => (
+      <Alert
+        key={index}
+        severity={alert.severity}
+        sx={{ mb: 1 }}
+      >
+        <AlertTitle>{t('performance.alert.title')}</AlertTitle>
+        {t('performance.alert.message', {
+          endpoint: alert.endpoint,
+          metric: t(`performance.metrics.${alert.metric}`),
+          value: alert.value,
+          threshold: alert.threshold
+        })}
+      </Alert>
+    ));
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        {t('performance.backendUnreachable')}
+      </Alert>
+    );
+  }
 
   return (
-    <>
-      <Box sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1000 }}>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title={t('performance.viewMetrics')} arrow placement="left">
-            <IconButton size="small" onClick={() => setDialogOpen(true)}>
+    <Paper sx={{ 
+      p: 2, 
+      m: 2,
+      backgroundColor: theme.palette.background.paper,
+      borderRadius: theme.shape.borderRadius,
+      boxShadow: theme.shadows[1]
+    }}>
+      <Typography variant="h6" gutterBottom sx={{ color: theme.palette.text.primary }}>
+        {t('performance.title')}
+      </Typography>
+
+      <Box sx={{ 
+        borderBottom: 1, 
+        borderColor: theme.palette.divider,
+        mb: 2 
+      }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          aria-label="health monitor tabs"
+          sx={{
+            '& .MuiTab-root': {
+              color: theme.palette.text.secondary,
+              '&.Mui-selected': {
+                color: theme.palette.primary.main
+              }
+            }
+          }}
+        >
+          <Tab
+            label={t('performance.tabs.metrics')}
+            id="health-tab-0"
+          />
+          <Tab
+            label={
               <Badge
                 badgeContent={alerts.length}
                 color="error"
-                invisible={alerts.length === 0}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    right: -15,
+                    top: -5,
+                  },
+                }}
               >
-                <SpeedIcon />
+                {t('performance.tabs.alerts')}
               </Badge>
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={getTooltipContent()} arrow placement="left">
-            <IconButton size="small" onClick={checkHealth}>
-              <Badge
-                variant="dot"
-                color={health.status === 'healthy' ? 'success' : 'error'}
-                invisible={health.status === 'unknown'}
-              >
-                {getStatusIcon(health.status)}
-              </Badge>
-            </IconButton>
-          </Tooltip>
-        </Box>
+            }
+            id="health-tab-1"
+          />
+        </Tabs>
       </Box>
 
-      <Dialog 
-        open={dialogOpen} 
-        onClose={() => setDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
-              <Tab label={t('performance.tabs.metrics')} />
-              <Tab 
-                label={t('performance.tabs.alerts')} 
-                icon={alerts.length > 0 ? <AlertIcon color="error" /> : undefined}
-                iconPosition="end"
-              />
-            </Tabs>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="subtitle2" gutterBottom>
-            {t('performance.serviceStatus')}: {health.status}
-          </Typography>
-          {Object.entries(health.services).map(([service, status]) => (
-            <Typography key={service} variant="body2" gutterBottom>
-              {service}: {status.status} {status.error && `(${status.error})`}
-            </Typography>
-          ))}
-          <Divider sx={{ my: 2 }} />
-          {activeTab === 0 ? (
-            Object.keys(metrics).length > 0 ? renderMetricsTable() : (
-              <Typography variant="body2" color="text.secondary">
-                {t('performance.noData')}
-              </Typography>
-            )
-          ) : (
-            renderAlerts()
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+      <Box role="tabpanel" hidden={activeTab !== 0}>
+        {activeTab === 0 && renderMetrics()}
+      </Box>
+      
+      <Box role="tabpanel" hidden={activeTab !== 1}>
+        {activeTab === 1 && renderAlerts()}
+      </Box>
+
+      <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="body2" color="textSecondary">
+          {t('performance.serviceStatus')}:
+        </Typography>
+        <Chip
+          size="small"
+          label={healthData?.status || 'unknown'}
+          color={healthData?.status === 'healthy' ? 'success' : 'error'}
+        />
+      </Box>
+    </Paper>
   );
 };
 

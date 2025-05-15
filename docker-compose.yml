@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/timeline
+      - ENVIRONMENT=production
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - mongodb
+    networks:
+      - timeline-network
+
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./docs/db:/docker-entrypoint-initdb.d
+    environment:
+      - MONGO_INITDB_DATABASE=timeline
+    networks:
+      - timeline-network
+
+networks:
+  timeline-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local

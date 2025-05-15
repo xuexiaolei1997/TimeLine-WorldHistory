@@ -1,77 +1,221 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
-import { format, parseISO } from 'date-fns';
+import {
+  Box,
+  Slider,
+  IconButton,
+  Typography,
+  Paper,
+  ButtonGroup,
+  Tooltip,
+  Chip,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  useTheme,
+  useMediaQuery
+} from '@mui/material';
+import {
+  PlayArrow,
+  Pause,
+  FastForward,
+  FastRewind,
+  FilterList,
+  Timeline,
+  StarBorder,
+  Public
+} from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
+import { format } from 'date-fns';
 
-const TimelineController = ({ currentDate, onDateChange }) => {
-  const [minDate, setMinDate] = useState(new Date(-3500, 0, 1)); // 公元前3500年
-  const [maxDate, setMaxDate] = useState(new Date());
-  const [sliderValue, setSliderValue] = useState(0);
+const TimelineController = ({
+  events,
+  currentDate,
+  onDateChange,
+  onEventSelect,
+  onPeriodChange,
+  selectedPeriod,
+  onImportanceChange,
+  minImportance
+}) => {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [visibleEvents, setVisibleEvents] = useState([]);
+  
+  // 计算时间范围
+  const timeRange = events.reduce(
+    (range, event) => {
+      const startDate = new Date(event.date.start);
+      const endDate = new Date(event.date.end);
+      return {
+        min: startDate < range.min ? startDate : range.min,
+        max: endDate > range.max ? endDate : range.max,
+      };
+    },
+    { min: new Date(), max: new Date() }
+  );
 
-  // 计算日期范围的总天数
-  const totalDays = useCallback(() => {
-    return Math.floor((maxDate - minDate) / (1000 * 60 * 60 * 24));
-  }, [minDate, maxDate]);
-
-  // 将日期转换为滑块值
-  const dateToSliderValue = useCallback((date) => {
-    const daysFromMin = Math.floor((date - minDate) / (1000 * 60 * 60 * 24));
-    return (daysFromMin / totalDays()) * 100;
-  }, [minDate, totalDays]);
-
-  // 将滑块值转换为日期
-  const sliderValueToDate = useCallback((value) => {
-    const daysFromMin = (value / 100) * totalDays();
-    const newDate = new Date(minDate);
-    newDate.setDate(newDate.getDate() + daysFromMin);
-    return newDate;
-  }, [minDate, totalDays]);
-
-  // 初始化滑块值
+  // 处理时间轴播放
   useEffect(() => {
-    setSliderValue(dateToSliderValue(currentDate));
-  }, [currentDate, dateToSliderValue]);
+    let timer;
+    if (isPlaying) {
+      timer = setInterval(() => {
+        const nextDate = new Date(currentDate.getTime() + playbackSpeed * 86400000);
+        if (nextDate > timeRange.max) {
+          setIsPlaying(false);
+        } else {
+          onDateChange(nextDate);
+        }
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isPlaying, currentDate, playbackSpeed, timeRange.max, onDateChange]);
 
-  // 处理滑块变化
-  const handleSliderChange = (value) => {
-    setSliderValue(value);
-    onDateChange(sliderValueToDate(value));
+  // 处理可见事件
+  useEffect(() => {
+    const visible = events.filter(event => {
+      const eventStart = new Date(event.date.start);
+      const eventEnd = new Date(event.date.end);
+      return currentDate >= eventStart && currentDate <= eventEnd;
+    });
+    setVisibleEvents(visible);
+  }, [currentDate, events]);
+
+  const handleSliderChange = (event, newValue) => {
+    const date = new Date(timeRange.min.getTime() + 
+      (newValue / 100) * (timeRange.max.getTime() - timeRange.min.getTime()));
+    onDateChange(date);
   };
 
-  // 格式化日期显示
-  const formatDateDisplay = (date) => {
-    if (date.getFullYear() < 0) {
-      return `公元前${Math.abs(date.getFullYear())}年`;
-    }
-    return format(date, 'yyyy年MM月dd日');
+  const getSliderValue = useCallback(() => {
+    return ((currentDate.getTime() - timeRange.min.getTime()) /
+      (timeRange.max.getTime() - timeRange.min.getTime())) * 100;
+  }, [currentDate, timeRange]);
+
+  const handleSpeedChange = (multiplier) => {
+    setPlaybackSpeed(current => {
+      const newSpeed = current * multiplier;
+      return Math.min(Math.max(newSpeed, 0.25), 16);
+    });
   };
 
   return (
-    <div className="timeline-container">
-      <div className="date-display">
-        {formatDateDisplay(currentDate)}
-      </div>
-      <Slider
-        min={0}
-        max={100}
-        value={sliderValue}
-        onChange={handleSliderChange}
-        step={0.01}
-        railStyle={{ backgroundColor: '#ddd', height: 4 }}
-        trackStyle={{ backgroundColor: '#1890ff', height: 4 }}
-        handleStyle={{
-          borderColor: '#1890ff',
-          height: 16,
-          width: 16,
-          marginTop: -6,
-          backgroundColor: '#fff',
+    <>
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'fixed',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '90%',
+          maxWidth: 800,
+          p: 2,
+          zIndex: 1000,
         }}
-      />
-      <div className="time-range">
-        <span>{formatDateDisplay(minDate)}</span>
-        <span>{formatDateDisplay(maxDate)}</span>
-      </div>
-    </div>
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            {format(currentDate, 'yyyy-MM-dd')}
+          </Typography>
+          <Tooltip title={t('timeline.filter')}>
+            <IconButton onClick={() => setDrawerOpen(true)}>
+              <FilterList />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <ButtonGroup size="small">
+            <IconButton onClick={() => handleSpeedChange(0.5)}>
+              <FastRewind />
+            </IconButton>
+            <IconButton onClick={() => setIsPlaying(!isPlaying)}>
+              {isPlaying ? <Pause /> : <PlayArrow />}
+            </IconButton>
+            <IconButton onClick={() => handleSpeedChange(2)}>
+              <FastForward />
+            </IconButton>
+          </ButtonGroup>
+
+          <Slider
+            value={getSliderValue()}
+            onChange={handleSliderChange}
+            aria-label="timeline-slider"
+            sx={{ flexGrow: 1 }}
+          />
+
+          <Chip
+            label={`${t('timeline.speed')} ${playbackSpeed}x`}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+        </Box>
+
+        <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {visibleEvents.map((event) => (
+            <Chip
+              key={event.id}
+              label={event.title[navigator.language.split('-')[0]] || event.title.en}
+              onClick={() => onEventSelect(event)}
+              color="primary"
+              size="small"
+            />
+          ))}
+        </Box>
+      </Paper>
+
+      <Drawer
+        anchor={isMobile ? 'bottom' : 'right'}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      >
+        <Box sx={{ width: isMobile ? 'auto' : 250, p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            {t('timeline.filters')}
+          </Typography>
+          <List>
+            <ListItem>
+              <ListItemIcon>
+                <Timeline />
+              </ListItemIcon>
+              <ListItemText primary={t('timeline.period')} />
+            </ListItem>
+            <Divider />
+            <ListItem>
+              <ListItemIcon>
+                <StarBorder />
+              </ListItemIcon>
+              <ListItemText primary={t('timeline.importance')} />
+              <Slider
+                value={minImportance}
+                onChange={(e, value) => onImportanceChange(value)}
+                min={1}
+                max={5}
+                step={1}
+                marks
+                sx={{ width: 100 }}
+              />
+            </ListItem>
+            <Divider />
+            <ListItem>
+              <ListItemIcon>
+                <Public />
+              </ListItemIcon>
+              <ListItemText primary={t('timeline.region')} />
+            </ListItem>
+          </List>
+        </Box>
+      </Drawer>
+    </>
   );
 };
 

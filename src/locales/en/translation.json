@@ -23,6 +23,18 @@
   "rateLimitError": "Too Many Requests",
   "rateLimitMessage": "Please wait a moment before trying again",
   "retryingIn": "Retrying in {{seconds}} seconds",
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back"
+  },
   "admin": {
     "title": "Admin Panel",
     "search": "Search",
@@ -43,12 +55,21 @@
       "startDate": "Start Date",
       "endDate": "End Date",
       "actions": "Actions",
-      "rowsPerPage": "Rows per page"
+      "rowsPerPage": "Rows per page",
+      "date": "Date",
+      "importance": "Importance",
+      "tags": "Tags",
+      "status": "Status",
+      "multiLang": "Multi-language content",
+      "public": "Public",
+      "private": "Private"
     },
     "form": {
-      "addTitle": "Add New",
-      "editTitle": "Edit",
+      "addTitle": "Add New Event",
+      "editTitle": "Edit Event",
       "title": "Title",
+      "titleEn": "Title (English)",
+      "titleZh": "Title (Chinese)",
       "period": "Period",
       "startDate": "Start Date",
       "endDate": "End Date",
@@ -57,20 +78,39 @@
       "endYear": "End Year",
       "zoomLevel": "Zoom Level",
       "coordinates": "Coordinates",
-      "coordinatesHelp": "Format: latitude,longitude",
+      "coordinatesHelp": "Format: longitude,latitude",
       "description": "Description",
+      "descriptionEn": "Description (English)",
+      "descriptionZh": "Description (Chinese)",
+      "regionName": "Region Name",
+      "highlightColor": "Highlight Color",
+      "importance": "Importance",
+      "isPublic": "Public Event",
+      "tags": "Tags",
+      "newTag": "Add new tag",
+      "media": "Media",
+      "addImages": "Add Images",
+      "addVideos": "Add Videos",
+      "addAudios": "Add Audio",
       "errors": {
         "required": "This field is required",
         "invalidDate": "End date must be after start date",
         "invalidYear": "End year must be after start year",
-        "invalidCoordinates": "Invalid coordinates format"
+        "invalidCoordinates": "Invalid coordinates format",
+        "invalidDateRange": "End date must be after start date"
       }
-    }
+    },
+    "addNew": "Add New",
+    "filter": "Filter",
+    "view": "View",
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirmMessage": "Are you sure you want to delete '{{title}}'?"
   },
   "periods": {
     "ancient": "Ancient",
     "medieval": "Medieval",
-    "modern": "Modern"
+    "modern": "Modern",
+    "contemporary": "Contemporary"
   },
   "performance": {
     "title": "Performance Metrics",
@@ -100,6 +140,43 @@
       "p95_response_time": "95th percentile response time",
       "error_rate": "error rate",
       "request_rate": "request rate"
+    }
+  },
+  "timeline": {
+    "filter": "Filter Events",
+    "filters": "Filters",
+    "period": "Period",
+    "importance": "Minimum Importance",
+    "region": "Region",
+    "speed": "Speed",
+    "play": "Play",
+    "pause": "Pause",
+    "forward": "Forward",
+    "backward": "Backward"
+  },
+  "earth": {
+    "help": "Click and drag to rotate. Scroll to zoom.",
+    "marker": "Event Location",
+    "navigation": {
+      "reset": "Reset View",
+      "zoomIn": "Zoom In",
+      "zoomOut": "Zoom Out"
+    }
+  },
+  "events": {
+    "noEvents": "No events found",
+    "loadMore": "Load More",
+    "filterBy": "Filter by",
+    "sortBy": "Sort by",
+    "details": {
+      "title": "Event Details",
+      "description": "Description",
+      "date": "Date",
+      "period": "Period",
+      "location": "Location",
+      "importance": "Importance",
+      "media": "Media",
+      "relatedEvents": "Related Events"
     }
   }
 }

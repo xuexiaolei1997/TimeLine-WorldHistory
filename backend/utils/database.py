@@ -13,7 +13,7 @@ class DatabaseManager:
     def __init__(self):
         try:
             # Load database configuration
-            with open("config.yaml", "r", encoding="utf-8") as f:
+            with open("backend/config.yaml", "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
                 mongo_config = config.get("database", {}).get("mongodb", {})
 
@@ -83,3 +83,9 @@ class DatabaseManager:
 
 # Create a global instance
 db_manager = DatabaseManager()
+
+
+def get_db() -> Generator[MongoClient, None, None]:
+    """获取数据库连接"""
+    with db_manager.get_db() as db:
+        yield db

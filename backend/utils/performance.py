@@ -4,9 +4,10 @@ from typing import Callable, Dict, List
 import logging
 from dataclasses import dataclass
 from statistics import mean
-from .performance_logger import performance_logger
+from .performance_logger import performance_logger, get_performance_logger
 
 logger = logging.getLogger(__name__)
+performance_logger = get_performance_logger()
 
 @dataclass
 class AlertThreshold:
@@ -237,3 +238,43 @@ class PerformanceMonitor:
 
 # Create global instance
 performance_monitor = PerformanceMonitor()
+
+async def performance_monitor_middleware(request: Request, call_next: Callable):
+    """FastAPI中间件，用于监控请求性能"""
+    start_time = time.time()
+    response = None
+    is_error = False
+
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        is_error = True
+        raise
+    finally:
+        process_time = (time.time() - start_time) * 1000  # 转换为毫秒
+        endpoint = f"{request.method} {request.url.path}"
+        
+        # 记录性能数据
+        performance_logger.log_request(
+            endpoint=endpoint,
+            response_time=process_time,
+            is_error=is_error
+        )
+
+        # 记录详细日志
+        status_code = response.status_code if response else 500
+        logger.info(
+            f"Request processed",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "duration": process_time,
+                "status_code": status_code,
+                "request_id": request.headers.get("X-Request-ID"),
+                "metrics": {
+                    "response_time": process_time,
+                    "is_error": is_error
+                }
+            }
+        )

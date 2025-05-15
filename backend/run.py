@@ -5,64 +5,31 @@ import yaml
 import importlib
 import uuid
 from contextlib import asynccontextmanager
-from fastapi import Request, Response
-from pydantic import BaseModel
-import uvicorn
-from fastapi import APIRouter, FastAPI
+from fastapi import Request, Response, FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from core.exceptions import add_exception_handlers
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+import uvicorn
+from core.exceptions import add_exception_handlers, AppExceptionCase
 from utils.rate_limiter import rate_limit_middleware
-from utils.performance import performance_monitor
+from utils.performance import performance_monitor, performance_monitor_middleware
 from utils.performance_logger import performance_logger
+# from utils.database import init_db
 import logging
 from logging.config import dictConfig
 
+from endpoints import events, periods, regions, health
+
 logger = logging.getLogger(__name__)
 
+# Load configuration
+with open("backend/config.yaml", "r") as f:
+    config = yaml.safe_load(f)
+
 # Configure logging
-dictConfig({
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'default': {
-            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        },
-        'request': {
-            'format': '%(asctime)s - %(name)s - %(levelname)s - %(request_id)s - %(message)s',
-        }
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'default',
-            'stream': 'ext://sys.stdout',
-        },
-        'request': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'request',
-            'stream': 'ext://sys.stdout',
-        },
-        'performance': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'formatter': 'request',
-            'filename': os.path.join('logs', 'performance.log'),
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 5,
-        }
-    },
-    'loggers': {
-        'performance': {
-            'handlers': ['performance', 'console'],
-            'level': 'INFO',
-            'propagate': False
-        }
-    },
-    'root': {
-        'level': 'INFO',
-        'handlers': ['console'],
-    },
-})
+os.makedirs("logs", exist_ok=True)
+dictConfig(config["logging"])
 
 
 def include_routers_from_directory(app: FastAPI, endpoints_root_directory: str):
@@ -146,7 +113,9 @@ class FastAPIRunner:
             return response
 
         # 添加性能监控中间件
-        app.middleware("http")(performance_monitor)
+        @app.middleware("http")
+        async def monitor_requests(request: Request, call_next):
+            return await performance_monitor_middleware(request, call_next)
 
         # 添加速率限制中间件
         app.middleware("http")(rate_limit_middleware)
@@ -154,17 +123,25 @@ class FastAPIRunner:
         # 开启CORS
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=[
-                "http://localhost:3000",  # 开发环境
-                "http://localhost:5000",   # 生产构建
-            ],
+            allow_origins=["*"],  # In production, replace with specific origins
             allow_credentials=True,
-            allow_methods=["GET", "POST", "PUT", "DELETE"],
+            allow_methods=["*"],
             allow_headers=["*"],
         )
 
         # 全局异常处理
         add_exception_handlers(app)
+
+        @app.exception_handler(AppExceptionCase)
+        async def api_exception_handler(request: Request, exc: AppExceptionCase):
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "error": exc.error_code,
+                    "message": exc.message,
+                    "details": exc.details
+                }
+            )
 
         # 初始化缓存
         from utils.cache import CacheManager, CacheConfig
@@ -178,8 +155,17 @@ class FastAPIRunner:
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
         # 注册路由
-        endpoints_root_directory = os.path.join(os.path.dirname(__file__), "endpoints")
-        app = include_routers_from_directory(app, endpoints_root_directory)
+        app.include_router(events.router)
+        app.include_router(periods.router)
+        app.include_router(regions.router)
+        app.include_router(health.router)
+
+        # 启动事件
+        @app.on_event("startup")
+        async def startup_event():
+            # Initialize database connection
+            # await init_db()
+            pass
 
         return app
     
