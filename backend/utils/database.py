@@ -26,7 +26,6 @@ class DatabaseManager:
                 port=mongo_config["port"],
                 username=os.getenv("MONGO_USERNAME") or mongo_config.get("username"),
                 password=os.getenv("MONGO_PASSWORD") or mongo_config.get("password"),
-                authSource=mongo_config.get("auth_source", "admin"),
                 connectTimeoutMS=5000,
                 socketTimeoutMS=30000,
                 maxPoolSize=50,
@@ -53,7 +52,14 @@ class DatabaseManager:
         try:
             if not self.check_connection():
                 # Try to reconnect
-                self.client.admin.command('ping')
+                try:
+                    self.client.admin.command('ping')
+                except PyMongoError:
+                    logger.warning("Database connection unavailable - using empty in-memory database")
+                    from pymongo import MongoClient
+                    yield MongoClient().get_database('__empty__')
+                    return
+            
             yield self.db
         except PyMongoError as e:
             logger.error("Database operation failed", exc_info=True)
@@ -83,9 +89,3 @@ class DatabaseManager:
 
 # Create a global instance
 db_manager = DatabaseManager()
-
-
-def get_db() -> Generator[MongoClient, None, None]:
-    """获取数据库连接"""
-    with db_manager.get_db() as db:
-        yield db

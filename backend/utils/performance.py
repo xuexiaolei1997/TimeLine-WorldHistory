@@ -244,9 +244,12 @@ async def performance_monitor_middleware(request: Request, call_next: Callable):
     start_time = time.time()
     response = None
     is_error = False
+    status_code = 500  # Default to 500 if exception occurs
 
     try:
         response = await call_next(request)
+        status_code = response.status_code
+        is_error = status_code >= 400
         return response
     except Exception as e:
         is_error = True
@@ -254,6 +257,7 @@ async def performance_monitor_middleware(request: Request, call_next: Callable):
     finally:
         process_time = (time.time() - start_time) * 1000  # 转换为毫秒
         endpoint = f"{request.method} {request.url.path}"
+        request_id = getattr(request.state, 'request_id', None)
         
         # 记录性能数据
         performance_logger.log_request(
@@ -263,7 +267,6 @@ async def performance_monitor_middleware(request: Request, call_next: Callable):
         )
 
         # 记录详细日志
-        status_code = response.status_code if response else 500
         logger.info(
             f"Request processed",
             extra={
@@ -271,7 +274,7 @@ async def performance_monitor_middleware(request: Request, call_next: Callable):
                 "path": request.url.path,
                 "duration": process_time,
                 "status_code": status_code,
-                "request_id": request.headers.get("X-Request-ID"),
+                "request_id": request_id,
                 "metrics": {
                     "response_time": process_time,
                     "is_error": is_error

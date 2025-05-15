@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from core.exceptions import AppExceptionCase, ValidationError
 from typing import Any, Dict, Optional
 from pydantic import ValidationError as PydanticValidationError
+import inspect
 
 def handle_app_exceptions(func):
     @wraps(func)

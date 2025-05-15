@@ -6,7 +6,7 @@ from utils.cache import cache_response
 
 from services.period_service import PeriodRepository, PeriodService
 from schemas.period_schemas import PeriodCreate, Period, PeriodUpdate
-from utils.database import get_db
+from utils.database import db_manager
 from utils.decorators import handle_app_exceptions
 
 router = APIRouter(prefix="/periods", tags=["periods"])
@@ -20,7 +20,7 @@ def transform_period(period: Period) -> Dict[str, str]:
 
 def get_period_service(
     request: Request,
-    db = Depends(get_db)
+    db = Depends(db_manager.get_db())
 ) -> PeriodService:
     """Dependency for getting PeriodService instance"""
     with db as database:

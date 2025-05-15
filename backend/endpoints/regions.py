@@ -6,7 +6,7 @@ from utils.cache import cache_response
 
 from services.region_service import RegionRepository
 from schemas.region_schemas import RegionCreate, Region, RegionUpdate
-from utils.database import get_db
+from utils.database import db_manager
 from utils.decorators import handle_app_exceptions
 
 router = APIRouter(prefix="/regions", tags=["regions"])
@@ -26,7 +26,7 @@ def transform_region(region: Region) -> Dict:
 
 def get_region_repo(
     request: Request,
-    db = Depends(get_db)
+    db = Depends(db_manager.get_db())
 ) -> RegionRepository:
     """Dependency for getting RegionRepository instance"""
     with db as database:

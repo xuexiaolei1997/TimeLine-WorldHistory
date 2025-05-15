@@ -8,8 +8,7 @@ from collections import defaultdict
 import logging
 
 from utils.performance_logger import get_performance_metrics
-from utils.database import get_db
-from utils.check_mongo import check_mongo_connection
+from utils.database import db_manager
 from utils.performance import performance_monitor
 from core.exceptions import DatabaseError
 
@@ -25,13 +24,15 @@ def get_system_metrics() -> Dict:
     }
 
 @router.get("")
-async def health_check(db = Depends(get_db)):
+async def health_check(db = Depends(db_manager.get_db())):
     """健康检查端点"""
     try:
         # 检查数据库连接
-        db.command("ping")
-        db_status = "healthy"
+        with db as database:
+            database.command("ping")
+            db_status = "healthy"
     except Exception as e:
+        logger.error(f"Database health check failed: {str(e)}")
         db_status = "unhealthy"
 
     # 获取系统指标

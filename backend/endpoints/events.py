@@ -6,14 +6,14 @@ from utils.decorators import handle_app_exceptions, wrap_response
 from datetime import datetime
 
 from services.event_service import EventRepository, EventService
-from utils.database import get_db
+from utils.database import db_manager
 from schemas.event_schemas import EventCreate, EventUpdate, Event, EventPeriod
 
 router = APIRouter(prefix="/events", tags=["events"])
 
 def get_event_service(
     request: Request,
-    db = Depends(get_db)
+    db = Depends(db_manager.get_db())
 ) -> EventService:
     """Dependency for getting EventService instance"""
     with db as database:
@@ -22,33 +22,116 @@ def get_event_service(
         return EventService(repo)
 
 def transform_event(event: dict) -> dict:
-    """Transform event for frontend compatibility"""
+    """Transform event for frontend compatibility with enhanced error handling"""
     if not event:
         return None
     
-    return {
-        "id": event.get("id") or str(event.get("_id")),
-        "title": event["title"],
-        "period": event["period"],
-        "date": event["date"],
-        "location": event["location"],
-        "description": event["description"],
-        "media": event.get("media", {}),
-        "contentRefs": event.get("contentRefs", {
-            "articles": [],
-            "images": [],
-            "videos": [],
-            "documents": []
-        }),
-        "tags": event.get("tags", {
-            "category": [],
-            "keywords": []
-        }),
-        "importance": event.get("importance", 1),
-        "is_public": event.get("is_public", True),
-        "created_at": event.get("created_at", datetime.now()).isoformat(),
-        "last_updated": event.get("last_updated", datetime.now()).isoformat()
-    }
+    try:
+        # 确保基础字段存在且有默认值
+        base_event = {
+            "id": str(event.get("_id", "")) or event.get("id", ""),
+            "title": {
+                "en": "",
+                "zh": ""
+            },
+            "period": "modern",  # 默认值
+            "date": {
+                "start": None,
+                "end": None
+            },
+            "location": {
+                "coordinates": [0, 0],
+                "zoomLevel": 1,
+                "highlightColor": "#FF0000",
+                "region_name": None
+            },
+            "description": {
+                "en": "",
+                "zh": ""
+            },
+            "media": {
+                "images": [],
+                "videos": [],
+                "audios": [],
+                "thumbnail": None
+            },
+            "contentRefs": {
+                "articles": [],
+                "images": [],
+                "videos": [],
+                "documents": []
+            },
+            "tags": {
+                "category": [],
+                "keywords": []
+            },
+            "importance": 1,
+            "is_public": True,
+            "created_at": datetime.now().isoformat(),
+            "last_updated": datetime.now().isoformat()
+        }
+
+        # 更新存在的字段
+        if isinstance(event.get("title"), dict):
+            base_event["title"].update(event["title"])
+        elif isinstance(event.get("title"), str):
+            base_event["title"]["en"] = event["title"]
+            
+        if event.get("period"):
+            base_event["period"] = event["period"]
+            
+        if isinstance(event.get("date"), dict):
+            base_event["date"].update(event["date"])
+            
+        if isinstance(event.get("location"), dict):
+            base_event["location"].update(event["location"])
+            
+        if isinstance(event.get("description"), dict):
+            base_event["description"].update(event["description"])
+            
+        if isinstance(event.get("media"), dict):
+            base_event["media"].update(event["media"])
+            
+        if isinstance(event.get("contentRefs"), dict):
+            base_event["contentRefs"].update(event["contentRefs"])
+            
+        if isinstance(event.get("tags"), dict):
+            base_event["tags"].update(event["tags"])
+            
+        if event.get("importance"):
+            base_event["importance"] = int(event["importance"])
+            
+        if event.get("is_public") is not None:
+            base_event["is_public"] = bool(event["is_public"])
+            
+        # 处理时间戳
+        for field in ["created_at", "last_updated"]:
+            if event.get(field):
+                try:
+                    if isinstance(event[field], datetime):
+                        base_event[field] = event[field].isoformat()
+                    else:
+                        base_event[field] = event[field]
+                except Exception:
+                    pass  # 保持默认值
+                    
+        return base_event
+        
+    except Exception as e:
+        logger.error(f"Error transforming event: {str(e)}")
+        # 返回基本数据结构而不是None，避免422错误
+        return {
+            "id": str(event.get("_id", "")) if event.get("_id") else "",
+            "title": {"en": "", "zh": ""},
+            "period": "modern",
+            "date": {"start": None, "end": None},
+            "location": {"coordinates": [0, 0], "zoomLevel": 1},
+            "description": {"en": "", "zh": ""},
+            "importance": 1,
+            "is_public": True,
+            "created_at": datetime.now().isoformat(),
+            "last_updated": datetime.now().isoformat()
+        }
 
 @router.get("/", response_model=dict)
 @cache_response(ttl=300)
