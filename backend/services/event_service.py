@@ -2,18 +2,21 @@ from typing import List, Optional, Dict, Any
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
 from datetime import datetime
+import logging
 from fastapi.logger import logger
 from bson import ObjectId
 
 from core.repository import BaseRepository
+from core.service import BaseService
 from schemas.event_schemas import Event, EventCreate, EventUpdate
+from core.exceptions import DatabaseError, NotFoundError
 
 class EventRepository(BaseRepository[Event]):
     """Repository for event data operations"""
     
     def __init__(self, db: Database):
         super().__init__("events", db)
-        # 创建索引以提升查询性能
+        # Create indexes for better performance
         self.collection.create_index([
             ("title.en", "text"), 
             ("title.zh", "text"),
@@ -26,35 +29,71 @@ class EventRepository(BaseRepository[Event]):
         self.collection.create_index([("period", 1)])
         self.collection.create_index([("importance", -1)])
         self.collection.create_index([("is_public", 1)])
+        # Initialize cache reference
+        self.cache = None
+
+    def search_text(self, query: str) -> List[Dict[str, Any]]:
+        """Basic text search"""
+        return list(self.collection.find(
+            {"$text": {"$search": query}},
+            {"score": {"$meta": "textScore"}}
+        ).sort([("score", {"$meta": "textScore"})]))
+
+    def query_by_filters(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Query with arbitrary filters"""
+        return list(self.collection.find(filters))
+
+    def get_by_period(self, period: str) -> List[Dict[str, Any]]:
+        """Get events by period"""
+        return list(self.collection.find({"period": period}))
+
+    def get_by_date_range(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """Get events by date range"""
+        return list(self.collection.find({
+            "date.start": {"$gte": start_date},
+            "date.end": {"$lte": end_date}
+        }))
+
+    def get_by_region(self, region_name: str) -> List[Dict[str, Any]]:
+        """Get events by region"""
+        return list(self.collection.find({
+            "location.region_name": {"$regex": region_name, "$options": "i"}
+        }))
+
+class EventService(BaseService[Event, EventCreate, EventUpdate]):
+    """Service layer for event operations"""
+    
+    def __init__(self, repository: EventRepository):
+        super().__init__(repository)
+        self.repository = repository
 
     def search_events(self, 
-                     query: str = None,
-                     period: str = None,
-                     start_date: str = None,
-                     end_date: str = None,
-                     tags: List[str] = None,
-                     importance_min: int = None,
-                     is_public: bool = None,
-                     region_name: str = None,
-                     skip: int = 0,
-                     limit: int = 50,
-                     sort_by: str = None,
-                     sort_order: int = 1) -> List[Event]:
-        """
-        高级搜索功能
-        """
+                    query: str = None,
+                    period: str = None,
+                    start_date: str = None,
+                    end_date: str = None,
+                    tags: List[str] = None,
+                    importance_min: int = None,
+                    is_public: bool = None,
+                    region_name: str = None,
+                    skip: int = 0,
+                    limit: int = 50,
+                    sort_by: str = None,
+                    sort_order: int = 1) -> List[Event]:
+        """Advanced event search with multiple filters"""
         try:
             filter_query = {}
             
-            # 文本搜索
+            # Text search
             if query:
-                filter_query["$text"] = {"$search": query}
+                results = self.repository.search_text(query)
+                return [Event(**doc) for doc in results[skip:skip+limit]]
             
-            # 时期筛选
+            # Period filter
             if period:
                 filter_query["period"] = period
                 
-            # 日期范围
+            # Date range
             if start_date or end_date:
                 date_query = {}
                 if start_date:
@@ -63,112 +102,118 @@ class EventRepository(BaseRepository[Event]):
                     date_query["$lte"] = end_date
                 filter_query["date.start"] = date_query
             
-            # 标签筛选
+            # Tags filter
             if tags:
                 filter_query["tags.keywords"] = {"$in": tags}
             
-            # 重要性筛选
+            # Importance filter
             if importance_min:
                 filter_query["importance"] = {"$gte": importance_min}
             
-            # 公开性筛选
+            # Public filter
             if is_public is not None:
                 filter_query["is_public"] = is_public
             
-            # 区域筛选
+            # Region filter
             if region_name:
                 filter_query["location.region_name"] = {"$regex": region_name, "$options": "i"}
             
-            # 排序
-            sort_options = {}
+            # Execute query
+            results = self.repository.query_by_filters(filter_query)
+            
+            # Apply sorting
             if sort_by:
-                sort_options[sort_by] = sort_order
+                results.sort(key=lambda x: x.get(sort_by, 0), reverse=sort_order < 0)
             else:
-                # 默认按重要性和日期排序
-                sort_options = {
-                    "importance": -1,
-                    "date.start": -1
-                }
+                # Default sorting by importance and date
+                results.sort(key=lambda x: (
+                    -x.get("importance", 0),
+                    -datetime.strptime(x["date"]["start"], "%Y-%m-%d").timestamp()
+                ))
             
-            # 执行查询
-            cursor = self.collection.find(
-                filter_query,
-                skip=skip,
-                limit=limit
-            ).sort(list(sort_options.items()))
-            
-            return [self._convert_id(doc) for doc in cursor]
+            return [Event(**doc) for doc in results[skip:skip+limit]]
             
         except PyMongoError as e:
             logger.error(f"Failed to search events: {str(e)}", exc_info=True)
-            raise
+            raise DatabaseError({
+                "message": "Failed to search events",
+                "details": {"error": str(e)}
+            })
 
     def get_by_period(self, period: str) -> List[Event]:
-        """按时期获取事件"""
+        """Get events by period"""
         try:
-            cursor = self.collection.find({"period": period})
-            return [self._convert_id(doc) for doc in cursor]
+            results = self.repository.get_by_period(period)
+            return [Event(**doc) for doc in results]
         except PyMongoError as e:
             logger.error(f"Failed to get events by period {period}", exc_info=True)
-            raise
+            raise DatabaseError({
+                "message": "Failed to get events by period",
+                "details": {"error": str(e)}
+            })
 
     def get_by_date_range(self, start_date: str, end_date: str) -> List[Event]:
-        """按日期范围获取事件"""
+        """Get events by date range"""
         try:
-            cursor = self.collection.find({
-                "date.start": {"$gte": start_date},
-                "date.end": {"$lte": end_date}
-            })
-            return [self._convert_id(doc) for doc in cursor]
+            results = self.repository.get_by_date_range(start_date, end_date)
+            return [Event(**doc) for doc in results]
         except PyMongoError as e:
-            logger.error(f"Failed to get events by date range", exc_info=True)
-            raise
+            logger.error("Failed to get events by date range", exc_info=True)
+            raise DatabaseError({
+                "message": "Failed to get events by date range",
+                "details": {"error": str(e)}
+            })
 
     def get_by_region(self, region_name: str) -> List[Event]:
-        """按区域获取事件"""
+        """Get events by region"""
         try:
-            cursor = self.collection.find({
-                "location.region_name": {"$regex": region_name, "$options": "i"}
-            })
-            return [self._convert_id(doc) for doc in cursor]
+            results = self.repository.get_by_region(region_name)
+            return [Event(**doc) for doc in results]
         except PyMongoError as e:
             logger.error(f"Failed to get events by region {region_name}", exc_info=True)
-            raise
+            raise DatabaseError({
+                "message": "Failed to get events by region",
+                "details": {"error": str(e)}
+            })
 
     def create(self, event: EventCreate) -> Event:
-        """创建新事件"""
+        """Create new event with timestamps"""
         try:
             event_dict = event.dict()
             event_dict["created_at"] = datetime.now()
             event_dict["last_updated"] = datetime.now()
             
-            result = self.collection.insert_one(event_dict)
-            return self.get(str(result.inserted_id))
+            created = super().create(event)
+            
+            # Clear relevant caches
+            if hasattr(self.repository, 'cache'):
+                self.repository.cache.delete("events:*")
+                
+            return created
         except PyMongoError as e:
             logger.error("Failed to create event", exc_info=True)
-            raise
+            raise DatabaseError({
+                "message": "Failed to create event",
+                "details": {"error": str(e)}
+            })
 
-    def update(self, id: str, event: EventUpdate) -> Optional[Event]:
-        """更新事件"""
+    def update(self, id: str, event: EventUpdate) -> Event:
+        """Update event with timestamp"""
         try:
             event_dict = event.dict(exclude_unset=True)
             event_dict["last_updated"] = datetime.now()
             
-            result = self.collection.update_one(
-                {"_id": ObjectId(id)},
-                {"$set": event_dict}
-            )
+            updated = super().update(id, event)
             
-            if result.modified_count == 0:
-                return None
+            # Clear relevant caches
+            if hasattr(self.repository, 'cache'):
+                self.repository.cache.delete(f"events:{id}")
+                self.repository.cache.delete("events:*")
                 
-            return self.get(id)
+            return updated
         except PyMongoError as e:
             logger.error(f"Failed to update event {id}", exc_info=True)
-            raise
-
-    def _convert_id(self, doc: Dict[str, Any]) -> Dict[str, Any]:
-        """转换 MongoDB _id 为字符串"""
-        if doc and "_id" in doc:
-            doc["id"] = str(doc.pop("_id"))
-        return doc
+            raise DatabaseError({
+                "message": "Failed to update event",
+                "details": {"error": str(e)}
+            })

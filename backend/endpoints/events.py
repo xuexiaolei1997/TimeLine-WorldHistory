@@ -5,21 +5,21 @@ from utils.cache import cache_response
 from utils.decorators import handle_app_exceptions, wrap_response
 from datetime import datetime
 
-from services.event_service import EventRepository
+from services.event_service import EventRepository, EventService
 from utils.database import get_db
 from schemas.event_schemas import EventCreate, EventUpdate, Event, EventPeriod
 
 router = APIRouter(prefix="/events", tags=["events"])
 
-def get_event_repo(
+def get_event_service(
     request: Request,
     db = Depends(get_db)
-) -> EventRepository:
-    """Dependency for getting PeriodRepository instance"""
+) -> EventService:
+    """Dependency for getting EventService instance"""
     with db as database:
         repo = EventRepository(database)
         repo.cache = request.app.state.cache
-        return repo
+        return EventService(repo)
 
 def transform_event(event: dict) -> dict:
     """Transform event for frontend compatibility"""
@@ -66,11 +66,11 @@ async def list_events(
     limit: int = Query(50, ge=1, le=100),
     sort_by: Optional[str] = None,
     sort_order: int = Query(1, ge=-1, le=1),
-    repo: EventRepository = Depends(get_event_repo)
+    service: EventService = Depends(get_event_service)
 ):
-    """获取事件列表，支持高级筛选和排序"""
+    """Get events list with advanced filtering and sorting"""
     logger.info(f"Fetching events with filters: query={query}, period={period}")
-    events = repo.search_events(
+    events = service.search_events(
         query=query,
         period=period.value if period else None,
         start_date=start_date,
@@ -91,11 +91,11 @@ async def list_events(
 @handle_app_exceptions
 async def create_event(
     event: EventCreate,
-    repo: EventRepository = Depends(get_event_repo)
+    service: EventService = Depends(get_event_service)
 ):
-    """创建新事件"""
+    """Create new event"""
     logger.info(f"Creating new event: {event.title}")
-    result = repo.create(event)
+    result = service.create(event)
     return wrap_response(data=transform_event(result))
 
 @router.get("/{event_id}", response_model=dict)
@@ -103,11 +103,11 @@ async def create_event(
 @handle_app_exceptions
 async def get_event(
     event_id: str,
-    repo: EventRepository = Depends(get_event_repo)
+    service: EventService = Depends(get_event_service)
 ):
-    """根据ID获取事件"""
+    """Get event by ID"""
     logger.info(f"Fetching event by ID: {event_id}")
-    event = repo.get(event_id)
+    event = service.get(event_id)
     return wrap_response(data=transform_event(event))
 
 @router.put("/{event_id}", response_model=dict)
@@ -115,22 +115,22 @@ async def get_event(
 async def update_event(
     event_id: str,
     event: EventUpdate,
-    repo: EventRepository = Depends(get_event_repo)
+    service: EventService = Depends(get_event_service)
 ):
-    """更新事件"""
+    """Update event"""
     logger.info(f"Updating event {event_id}")
-    result = repo.update(event_id, event)
+    result = service.update(event_id, event)
     return wrap_response(data=transform_event(result))
 
 @router.delete("/{event_id}", response_model=dict)
 @handle_app_exceptions
 async def delete_event(
     event_id: str,
-    repo: EventRepository = Depends(get_event_repo)
+    service: EventService = Depends(get_event_service)
 ):
-    """删除事件"""
+    """Delete event"""
     logger.info(f"Deleting event {event_id}")
-    repo.delete(event_id)
+    service.delete(event_id)
     return wrap_response(data={"message": "Event deleted successfully"})
 
 @router.get("/by-period/{period}", response_model=dict)
@@ -138,11 +138,11 @@ async def delete_event(
 @handle_app_exceptions
 async def get_events_by_period(
     period: EventPeriod,
-    repo: EventRepository = Depends(get_event_repo)
+    service: EventService = Depends(get_event_service)
 ):
-    """获取特定时期的所有事件"""
+    """Get all events for specific period"""
     logger.info(f"Fetching events for period: {period}")
-    events = repo.get_by_period(period.value)
+    events = service.get_by_period(period.value)
     return wrap_response(data=[transform_event(event) for event in events])
 
 @router.get("/by-region/{region_name}", response_model=dict)
@@ -150,9 +150,9 @@ async def get_events_by_period(
 @handle_app_exceptions
 async def get_events_by_region(
     region_name: str,
-    repo: EventRepository = Depends(get_event_repo)
+    service: EventService = Depends(get_event_service)
 ):
-    """获取特定区域的所有事件"""
+    """Get all events for specific region"""
     logger.info(f"Fetching events for region: {region_name}")
-    events = repo.get_by_region(region_name)
+    events = service.get_by_region(region_name)
     return wrap_response(data=[transform_event(event) for event in events])
