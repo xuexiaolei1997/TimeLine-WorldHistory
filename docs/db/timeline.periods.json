@@ -1,52 +1,54 @@
-[{
-  "_id": {
-    "$oid": "68196884a3f030d8657442cd"
+[
+  {
+    "id": "68196884a3f030d8657442cd",
+    "periodId": "prehistoric",
+    "name": {
+      "en": "Prehistoric",
+      "zh": "史前时期"
+    },
+    "description": "The period before written records, covering the origins of human civilization.",
+    "startYear": -10000,
+    "endYear": -3500,
+    "color": "#8B4513",
+    "created_at": "2025-05-15T13:47:10.123456"
   },
-  "periodId": "prehistoric",
-  "name": {
-    "en": "Prehistoric",
-    "zh": "史前时期"
+  {
+    "id": "68196884a3f030d8657442ce",
+    "periodId": "ancient",
+    "name": {
+      "en": "Ancient Civilizations",
+      "zh": "古代文明"
+    },
+    "description": "The rise of early civilizations with written records and organized societies.",
+    "startYear": -3500,
+    "endYear": 500,
+    "color": "#CD5C5C",
+    "created_at": "2025-05-15T13:47:10.123456"
   },
-  "startYear": -10000,
-  "endYear": -3500,
-  "color": "#8B4513"
-},
-{
-  "_id": {
-    "$oid": "68196884a3f030d8657442ce"
+  {
+    "id": "68196884a3f030d8657442cf",
+    "periodId": "medieval",
+    "name": {
+      "en": "Medieval",
+      "zh": "中世纪"
+    },
+    "description": "The period between ancient and modern times, characterized by feudalism and religious influence.",
+    "startYear": 500,
+    "endYear": 1500,
+    "color": "#4682B4",
+    "created_at": "2025-05-15T13:47:10.123456"
   },
-  "periodId": "ancient",
-  "name": {
-    "en": "Ancient Civilizations",
-    "zh": "古代文明"
-  },
-  "startYear": -3500,
-  "endYear": 500,
-  "color": "#CD5C5C"
-},
-{
-  "_id": {
-    "$oid": "68196884a3f030d8657442cf"
-  },
-  "periodId": "medieval",
-  "name": {
-    "en": "Medieval",
-    "zh": "中世纪"
-  },
-  "startYear": 500,
-  "endYear": 1500,
-  "color": "#4682B4"
-},
-{
-  "_id": {
-    "$oid": "68196884a3f030d8657442d0"
-  },
-  "periodId": "modern",
-  "name": {
-    "en": "Modern",
-    "zh": "近现代"
-  },
-  "startYear": 1500,
-  "endYear": 2025,
-  "color": "#32CD32"
-}]
+  {
+    "id": "68196884a3f030d8657442d0",
+    "periodId": "modern",
+    "name": {
+      "en": "Modern",
+      "zh": "近现代"
+    },
+    "description": "The period from the Renaissance to the present day, marked by industrialization and globalization.",
+    "startYear": 1500,
+    "endYear": 2025,
+    "color": "#32CD32",
+    "created_at": "2025-05-15T13:47:10.123456"
+  }
+]
