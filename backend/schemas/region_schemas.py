@@ -60,8 +60,8 @@ class Region(RegionBase):
     created_at: datetime = Field(default_factory=datetime.now)
 
     class Config:
-        orm_mode = True
-        allow_population_by_field_name = True
+        from_attributes = True
+        validate_by_name = True
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }

@@ -160,13 +160,6 @@ class FastAPIRunner:
         app.include_router(regions.router)
         app.include_router(health.router)
 
-        # 启动事件
-        @app.on_event("startup")
-        async def startup_event():
-            # Initialize database connection
-            # await init_db()
-            pass
-
         return app
     
     async def run(self):
