@@ -109,7 +109,7 @@ class FastAPIRunner:
         )
 
         # 注册中间件
-        self._register_middlewares(app)
+        # self._register_middlewares(app)
         
         # 注册异常处理
         self._register_exception_handlers(app)
@@ -156,16 +156,16 @@ class FastAPIRunner:
     def _register_exception_handlers(self, app: FastAPI):
         add_exception_handlers(app)
         
-        @app.exception_handler(AppExceptionCase)
-        async def api_exception_handler(request: Request, exc: AppExceptionCase):
-            return JSONResponse(
-                status_code=exc.status_code,
-                content={
-                    "error": exc.error_code,
-                    "message": exc.message,
-                    "details": exc.details
-                }
-            )
+        # @app.exception_handler(AppExceptionCase)
+        # async def api_exception_handler(request: Request, exc: AppExceptionCase):
+        #     return JSONResponse(
+        #         status_code=exc.status_code,
+        #         content={
+        #             "error": exc.error_code,
+        #             "message": exc.message,
+        #             "details": exc.details
+        #         }
+        #     )
 
     def _init_services(self, app: FastAPI):
         # 初始化缓存

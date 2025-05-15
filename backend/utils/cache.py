@@ -2,7 +2,7 @@ from typing import Optional, Any
 import redis
 import json
 from functools import wraps
-from fastapi import Request
+from fastapi import Request, Depends
 import logging
 from fastapi.logger import logger
 from pydantic import BaseModel
@@ -11,6 +11,10 @@ from core.exceptions import DatabaseError
 import inspect
 
 logger = logging.getLogger(__name__)
+
+def get_cache(request: Request) -> 'CacheManager':
+    """Dependency to get cache instance from app state"""
+    return request.app.state.cache
 
 class CacheConfig(BaseModel):
     host: str = "localhost"

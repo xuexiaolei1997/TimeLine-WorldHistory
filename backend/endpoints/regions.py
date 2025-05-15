@@ -4,9 +4,9 @@ import logging
 from fastapi.logger import logger
 from utils.cache import cache_response
 
-from services.region_service import RegionRepository
+from services.region_service import RegionService
+from core.dependencies import get_region_service
 from schemas.region_schemas import RegionCreate, Region, RegionUpdate
-from utils.database import db_manager
 from utils.decorators import handle_app_exceptions
 
 router = APIRouter(prefix="/regions", tags=["regions"])
@@ -24,37 +24,26 @@ def transform_region(region: Region) -> Dict:
         "color": region.color
     }
 
-def get_region_repo(
-    request: Request,
-    db = Depends(db_manager.get_db())
-) -> RegionRepository:
-    """Dependency for getting RegionRepository instance"""
-    with db as database:
-        repo = RegionRepository(database)
-        repo.cache = request.app.state.cache
-        return repo
-
 @router.get("/", response_model=List[Dict])
 @cache_response(ttl=300)
 @handle_app_exceptions
 async def list_regions(
-    request: Request,
-    repo: RegionRepository = Depends(get_region_repo)
+    service: RegionService = Depends(get_region_service)
 ):
     """Get all regions in frontend-compatible format"""
     logger.info("Fetching all regions")
-    regions = repo.query_regions()
+    regions = service.query_regions()
     return [transform_region(region) for region in regions]
 
 @router.post("/create", response_model=Region)
 @handle_app_exceptions
 async def create_region(
     region: RegionCreate, 
-    repo: RegionRepository = Depends(get_region_repo)
+    service: RegionService = Depends(get_region_service)
 ):
     """Create a new region"""
     logger.info(f"Creating new region: {region.name}")
-    res = repo.create(region)
+    res = service.create(region)
     return res
 
 
@@ -63,32 +52,32 @@ async def create_region(
 @handle_app_exceptions
 async def read_regions_by_period(
     period_id: str,
-    repo: RegionRepository = Depends(get_region_repo)
+    service: RegionService = Depends(get_region_service)
 ):
     """Get regions by period ID"""
     logger.info(f"Fetching regions for period: {period_id}")
-    return repo.get_by_period(period_id)
+    return service.get_by_period(period_id)
 
 @router.post("/contains-point", response_model=List[Region])
 @cache_response(ttl=300)
 @handle_app_exceptions
 async def find_regions_containing_point(
     coordinates: List[float],
-    repo: RegionRepository = Depends(get_region_repo)
+    service: RegionService = Depends(get_region_service)
 ):
     """Find regions that contain the given point"""
     logger.info(f"Finding regions containing point: {coordinates}")
-    return repo.find_within(coordinates)
+    return service.find_within(coordinates)
 
 @router.get("/{region_id}", response_model=Region)
 @handle_app_exceptions
 async def read_region(
     region_id: str,
-    repo: RegionRepository = Depends(get_region_repo)
+    service: RegionService = Depends(get_region_service)
 ):
     """Get region by ID"""
     logger.info(f"Fetching region by ID: {region_id}")
-    ret = repo.get(region_id)
+    ret = service.get(region_id)
     return ret
 
 @router.put("/{region_id}", response_model=Region)
@@ -96,20 +85,20 @@ async def read_region(
 async def update_region(
     region_id: str,
     region: RegionUpdate,
-    repo: RegionRepository = Depends(get_region_repo)
+    service: RegionService = Depends(get_region_service)
 ):
     """Update an existing region"""
     logger.info(f"Updating region {region_id}")
-    res = repo.update(region_id, region)
+    res = service.update(region_id, region)
     return res
 
 @router.delete("/{region_id}")
 @handle_app_exceptions
 async def delete_region(
     region_id: str,
-    repo: RegionRepository = Depends(get_region_repo)
+    service: RegionService = Depends(get_region_service)
 ):
     """Delete a region"""
     logger.info(f"Deleting region {region_id}")
-    repo.delete(region_id)
+    service.delete(region_id)
     return {"message": "Region deleted successfully"}

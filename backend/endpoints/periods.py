@@ -4,9 +4,9 @@ import logging
 from fastapi.logger import logger
 from utils.cache import cache_response
 
-from services.period_service import PeriodRepository, PeriodService
+from services.period_service import PeriodService
+from core.dependencies import get_period_service
 from schemas.period_schemas import PeriodCreate, Period, PeriodUpdate
-from utils.database import db_manager
 from utils.decorators import handle_app_exceptions
 
 router = APIRouter(prefix="/periods", tags=["periods"])
@@ -18,21 +18,10 @@ def transform_period(period: Period) -> Dict[str, str]:
         "color": period.color
     }
 
-def get_period_service(
-    request: Request,
-    db = Depends(db_manager.get_db())
-) -> PeriodService:
-    """Dependency for getting PeriodService instance"""
-    with db as database:
-        repo = PeriodRepository(database)
-        repo.cache = request.app.state.cache
-        return PeriodService(repo)
-
 @router.get("/", response_model=Dict[str, Dict[str, str]])
 @cache_response(ttl=300)
 @handle_app_exceptions
 async def list_periods(
-    request: Request,
     service: PeriodService = Depends(get_period_service)
 ):
     """Get all periods in frontend-compatible format"""
@@ -53,7 +42,6 @@ async def create_period(
 @router.post("/search", response_model=List[Period])
 @cache_response(ttl=60)
 async def search_periods(
-    request: Request,
     query: str = Query(..., min_length=1),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -89,7 +77,6 @@ async def read_periods_by_year(
 @cache_response(ttl=60)
 @handle_app_exceptions
 async def query_periods(
-    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     service: PeriodService = Depends(get_period_service),

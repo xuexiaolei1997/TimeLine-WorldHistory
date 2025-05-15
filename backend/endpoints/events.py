@@ -5,21 +5,11 @@ from utils.cache import cache_response
 from utils.decorators import handle_app_exceptions, wrap_response
 from datetime import datetime
 
-from services.event_service import EventRepository, EventService
-from utils.database import db_manager
+from services.event_service import EventService
+from core.dependencies import get_event_service
 from schemas.event_schemas import EventCreate, EventUpdate, Event, EventPeriod
 
 router = APIRouter(prefix="/events", tags=["events"])
-
-def get_event_service(
-    request: Request,
-    db = Depends(db_manager.get_db())
-) -> EventService:
-    """Dependency for getting EventService instance"""
-    with db as database:
-        repo = EventRepository(database)
-        repo.cache = request.app.state.cache
-        return EventService(repo)
 
 def transform_event(event: dict) -> dict:
     """Transform event for frontend compatibility with enhanced error handling"""
@@ -132,6 +122,13 @@ def transform_event(event: dict) -> dict:
             "created_at": datetime.now().isoformat(),
             "last_updated": datetime.now().isoformat()
         }
+
+@router.get("/test")
+async def test_endpoint(
+    request: Request):
+    """Test endpoint to check database connection"""
+    return wrap_response(data={"message": "Test endpoint is working!"})
+
 
 @router.get("/", response_model=dict)
 @cache_response(ttl=300)
