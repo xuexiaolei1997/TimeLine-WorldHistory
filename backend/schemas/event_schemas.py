@@ -70,7 +70,8 @@ class EventBase(BaseModel):
     tags: Union[EventTags, dict] = Field(default_factory=EventTags)
     importance: int = Field(default=1)
     is_public: bool = Field(default=True)
-    last_updated: datetime = Field(default_factory=datetime.now)
+    last_updated: str = Field(default_factory=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    create_at: str = Field(default_factory=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     class Config:
         validate_assignment = True
