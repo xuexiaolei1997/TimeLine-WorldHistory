@@ -13,7 +13,8 @@
     "location": {
       "coordinates": [29.9792, 31.1342],
       "zoomLevel": 4,
-      "highlightColor": "#FF0000"
+      "highlightColor": "#FF0000",
+      "region_name": "Egypt"
     },
     "description": {
       "en": "Construction of the Great Pyramids of Giza",
@@ -54,7 +55,8 @@
     "location": {
       "coordinates": [41.9028, 12.4964],
       "zoomLevel": 3,
-      "highlightColor": "#FF0000"
+      "highlightColor": "#FF0000",
+      "region_name": "Italy"
     },
     "description": {
       "en": "Rise and fall of the Roman Empire",
@@ -95,7 +97,8 @@
     "location": {
       "coordinates": [110, 35],
       "zoomLevel": 4,
-      "highlightColor": "#FF0000"
+      "highlightColor": "#FF0000",
+      "region_name": "China"
     },
     "description": {
       "en": "Ming Dynasty reconstruction of the Great Wall",
@@ -136,7 +139,8 @@
     "location": {
       "coordinates": [51.5074, -0.1278],
       "zoomLevel": 3,
-      "highlightColor": "#FF0000"
+      "highlightColor": "#FF0000",
+      "region_name": "United Kingdom"
     },
     "description": {
       "en": "Transition to new manufacturing processes",

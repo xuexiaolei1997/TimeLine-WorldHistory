@@ -57,7 +57,6 @@ class RegionUpdate(RegionBase):
 class Region(RegionBase):
     """Complete region model including database ID"""
     id: str = Field(..., alias="_id", description="MongoDB ObjectID")
-    created_at: datetime = Field(default_factory=datetime.now)
 
     class Config:
         from_attributes = True

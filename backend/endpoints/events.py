@@ -12,12 +12,17 @@ from schemas.event_schemas import EventCreate, EventUpdate, Event, EventPeriod
 router = APIRouter(prefix="/events", tags=["events"])
 
 def transform_event(event: dict) -> dict:
-    """Transform event for frontend compatibility with enhanced error handling"""
+    """转换事件数据为前端兼容格式(带增强的错误处理)
+    Args:
+        event: 原始事件数据字典
+    Returns:
+        dict: 转换后的事件数据字典
+    """
     if not event:
         return None
     
     try:
-        # 确保基础字段存在且有默认值
+        # 1. 初始化基础数据结构，确保所有必要字段都有默认值
         base_event = {
             "id": str(event.get("_id", "")) or event.get("id", ""),
             "title": {
@@ -126,8 +131,14 @@ def transform_event(event: dict) -> dict:
 @router.get("/test")
 async def test_endpoint(
     request: Request):
-    """Test endpoint to check database connection"""
-    return wrap_response(data={"message": "Test endpoint is working!"})
+    """测试端点(检查数据库连接)
+    Returns:
+        dict: 包含测试结果的响应
+    Notes:
+        1. 主要用于健康检查
+        2. 返回200表示服务正常运行
+    """
+    return wrap_response(data={"message": "测试端点工作正常"})
 
 
 @router.get("/", response_model=dict)
@@ -148,8 +159,43 @@ async def list_events(
     sort_order: int = Query(1, ge=-1, le=1),
     service: EventService = Depends(get_event_service)
 ):
-    """Get events list with advanced filtering and sorting"""
-    logger.info(f"Fetching events with filters: query={query}, period={period}")
+    """获取历史事件列表(带高级过滤和排序)
+    Args:
+        query: 文本搜索关键字(支持中英文)
+        period: 历史时期过滤(枚举值: ancient/medieval/modern/contemporary)
+        start_date: 开始日期(YYYY-MM-DD格式)
+        end_date: 结束日期(YYYY-MM-DD格式)
+        tags: 标签过滤列表(多个标签用逗号分隔)
+        importance_min: 最小重要性(1-5, 1最低,5最高)
+        is_public: 是否只获取公开事件(True/False)
+        region_name: 地区名称过滤(精确匹配)
+        skip: 跳过记录数(分页用)
+        limit: 返回记录数(最大100)
+        sort_by: 排序字段(如"date.start","importance")
+        sort_order: 排序顺序(1升序,-1降序)
+    Returns:
+        dict: 包含事件列表的响应，每个事件包含:
+           - id: 事件ID
+           - title: 多语言标题
+           - period: 所属时期
+           - date: 日期范围
+           - location: 地理位置信息
+           - description: 多语言描述
+           - media: 媒体资源
+           - contentRefs: 相关引用内容
+           - tags: 分类标签
+           - importance: 重要性等级
+           - is_public: 是否公开
+    Notes:
+        1. 使用Redis缓存结果(5分钟TTL)
+        2. 支持多条件组合查询
+        3. 返回结果已转换为前端兼容格式
+        4. 默认按开始日期降序排列
+    Examples:
+        GET /events/?period=ancient&importance_min=3&limit=10
+        GET /events/?query=战争&start_date=1914-01-01&end_date=1918-12-31
+    """
+    logger.info(f"获取历史事件列表 - 查询条件: 关键字={query}, 时期={period}, 地区={region_name}, 日期范围={start_date}至{end_date}, 标签={tags}, 重要性>={importance_min}, 公开={is_public}, 排序={sort_by} {sort_order}")
     events = service.search_events(
         query=query,
         period=period.value if period else None,
@@ -173,8 +219,46 @@ async def create_event(
     event: EventCreate,
     service: EventService = Depends(get_event_service)
 ):
-    """Create new event"""
-    logger.info(f"Creating new event: {event.title}")
+    """创建新历史事件(带字段验证)
+    Args:
+        event: 事件创建数据模型(包含以下字段):
+           - title: 多语言标题(中英文必填其一)
+           - period: 所属时期(ancient/medieval/modern/contemporary)
+           - date: 日期范围(包含start和end)
+           - location: 地理位置信息(包含coordinates和region_name)
+           - description: 多语言描述
+           - media: 媒体资源(可选)
+           - contentRefs: 相关引用内容(可选)
+           - tags: 分类标签(可选)
+           - importance: 重要性等级(1-5)
+           - is_public: 是否公开(默认True)
+    Returns:
+        dict: 包含创建事件的响应(已转换为前端兼容格式)
+    Notes:
+        1. 自动设置创建时间和最后更新时间
+        2. 创建成功后清除相关缓存:
+           - 事件列表缓存
+           - 如果设置了时期: 清除该时期事件缓存
+           - 如果设置了地区: 清除该地区事件缓存
+        3. 字段验证规则:
+           - 标题至少提供一种语言
+           - 日期范围必须有效(start <= end)
+           - 坐标必须是有效的[经度,纬度]
+           - 重要性必须在1-5之间
+    Examples:
+        POST /events/
+        {
+            "title": {"zh": "五四运动", "en": "May Fourth Movement"},
+            "period": "modern",
+            "date": {"start": "1919-05-04", "end": "1919-06-28"},
+            "location": {
+                "coordinates": [116.404, 39.915],
+                "region_name": "北京"
+            },
+            "importance": 4
+        }
+    """
+    logger.info(f"创建新历史事件: {event.title.zh or event.title.en} (时期: {event.period}, 地区: {event.location.region_name}, 日期: {event.date.start}至{event.date.end})")
     result = service.create(event)
     return wrap_response(data=transform_event(result))
 
@@ -185,8 +269,36 @@ async def get_event(
     event_id: str,
     service: EventService = Depends(get_event_service)
 ):
-    """Get event by ID"""
-    logger.info(f"Fetching event by ID: {event_id}")
+    """根据ID获取事件详情(带缓存策略)
+    Args:
+        event_id: 事件ID(MongoDB ObjectId)
+    Returns:
+        dict: 包含事件详情的响应(已转换为前端兼容格式)，包含:
+           - id: 事件ID
+           - title: 多语言标题(中英文)
+           - period: 所属时期
+           - date: 日期范围(start和end)
+           - location: 地理位置信息(坐标和地区名)
+           - description: 多语言描述
+           - media: 媒体资源(图片/视频/音频)
+           - contentRefs: 相关引用内容
+           - tags: 分类标签
+           - importance: 重要性等级
+           - is_public: 是否公开
+           - created_at: 创建时间
+           - last_updated: 最后更新时间
+    Notes:
+        1. 使用Redis缓存结果(5分钟TTL)
+        2. 如果找不到会返回404错误
+        3. 缓存策略:
+           - 首次查询从数据库加载并缓存
+           - 后续查询直接从缓存读取
+           - 事件更新时自动清除缓存
+        4. 包含完整事件信息和关联数据
+    Examples:
+        GET /events/507f1f77bcf86cd799439011
+    """
+    logger.info(f"查询事件详情 - ID: {event_id} (使用缓存策略)")
     event = service.get(event_id)
     return wrap_response(data=transform_event(event))
 
@@ -197,8 +309,32 @@ async def update_event(
     event: EventUpdate,
     service: EventService = Depends(get_event_service)
 ):
-    """Update event"""
-    logger.info(f"Updating event {event_id}")
+    """更新事件信息(支持部分更新)
+    Args:
+        event_id: 要更新的事件ID(MongoDB ObjectId)
+        event: 事件更新数据模型(包含需要更新的字段)
+    Returns:
+        dict: 包含更新后事件详情的响应(已转换为前端兼容格式)
+    Notes:
+        1. 自动更新最后修改时间
+        2. 更新成功后清除相关缓存:
+           - 该事件的单独缓存
+           - 事件列表缓存
+           - 如果时期变更: 清除新旧时期的事件缓存
+           - 如果地区变更: 清除新旧地区的事件缓存
+        3. 支持部分更新(仅更新提供的字段)
+        4. 字段验证规则:
+           - 日期范围必须有效(start <= end)
+           - 坐标必须是有效的[经度,纬度]
+           - 重要性必须在1-5之间
+    Examples:
+        PUT /events/507f1f77bcf86cd799439011
+        {
+            "title": {"zh": "更新后的标题"},
+            "importance": 5
+        }
+    """
+    logger.info(f"更新事件信息 - ID: {event_id} (更新字段: {event.dict(exclude_unset=True)})")
     result = service.update(event_id, event)
     return wrap_response(data=transform_event(result))
 
@@ -208,10 +344,28 @@ async def delete_event(
     event_id: str,
     service: EventService = Depends(get_event_service)
 ):
-    """Delete event"""
-    logger.info(f"Deleting event {event_id}")
+    """删除历史事件及其关联资源
+    Args:
+        event_id: 要删除的事件ID(MongoDB ObjectId)
+    Returns:
+        dict: 包含删除结果的响应
+    Notes:
+        1. 删除成功后清除相关缓存:
+           - 该事件的单独缓存
+           - 事件列表缓存
+           - 该事件所属时期的事件缓存
+           - 该事件所属地区的事件缓存
+        2. 同时清理关联资源:
+           - 删除关联的媒体文件(图片/视频/音频)
+           - 删除关联的引用内容
+           - 从所有相关标签中移除该事件
+        3. 操作不可逆，请谨慎使用
+    Examples:
+        DELETE /events/507f1f77bcf86cd799439011
+    """
+    logger.info(f"删除历史事件及其关联资源 - ID: {event_id} (包括缓存、媒体文件和关联数据)")
     service.delete(event_id)
-    return wrap_response(data={"message": "Event deleted successfully"})
+    return wrap_response(data={"message": "事件删除成功"})
 
 @router.get("/by-period/{period}", response_model=dict)
 @cache_response(ttl=300)
@@ -220,8 +374,17 @@ async def get_events_by_period(
     period: EventPeriod,
     service: EventService = Depends(get_event_service)
 ):
-    """Get all events for specific period"""
-    logger.info(f"Fetching events for period: {period}")
+    """根据历史时期获取事件列表
+    Args:
+        period: 历史时期枚举值(ancient/medieval/modern/contemporary)
+    Returns:
+        dict: 包含事件列表的响应(已转换为前端兼容格式)
+    Notes:
+        1. 使用Redis缓存结果(5分钟TTL)
+        2. 返回结果按开始日期排序
+        3. 包含该时期所有重要事件
+    """
+    logger.info(f"获取历史时期事件列表 - 时期: {period.value}")
     events = service.get_by_period(period.value)
     return wrap_response(data=[transform_event(event) for event in events])
 
@@ -232,7 +395,16 @@ async def get_events_by_region(
     region_name: str,
     service: EventService = Depends(get_event_service)
 ):
-    """Get all events for specific region"""
-    logger.info(f"Fetching events for region: {region_name}")
+    """根据地区名称获取关联事件列表
+    Args:
+        region_name: 地区名称(精确匹配)
+    Returns:
+        dict: 包含事件列表的响应(已转换为前端兼容格式)
+    Notes:
+        1. 使用Redis缓存结果(5分钟TTL)
+        2. 返回结果按开始日期排序
+        3. 包含该地区所有重要事件
+    """
+    logger.info(f"获取地区关联事件列表 - 地区: {region_name}")
     events = service.get_by_region(region_name)
     return wrap_response(data=[transform_event(event) for event in events])

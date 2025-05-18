@@ -43,7 +43,7 @@ class PeriodUpdate(PeriodBase):
 
 class Period(PeriodBase):
     """Complete period model including database ID"""
-    id: str = Field(..., description="MongoDB ObjectID")
+    id: str = Field(..., alias="_id", description="MongoDB ObjectID")
     periodId: str = Field(..., description="Unique period identifier")
 
     class Config:
